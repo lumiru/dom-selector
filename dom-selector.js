@@ -6,63 +6,46 @@ var OUTLINE_CURRENT_ELEMENT_CLASS = "fw-dom-selector-over-outline";
 function DomSelector(container) {
 	var self = this;
 
-	this.overCssText = 'outline: 1px dashed red !important;';
-	this.selectedCssText = 'outline: 1px dashed green !important;';
+	this.overCssText = "outline: 1px dashed red !important;";
+	this.selectedCssText = "outline: 1px dashed green !important;";
+	this.tagTooltipCssText = "color: white; background-color: red; position: absolute; z-index: 99999999; margin-top: -22px; margin-left: -1px; padding: 2px 6px; font-family: sans-serif; font-size: 12px; opacity: .8; pointer-events: none; line-height: 1.4;";
 
-	this.selecting = false;
+	this.picking = false;
 	this.selector = "";
 	this.selectedStyleSheetRule = null;
 	this.overStyleSheetRule = null;
 	this.element = null;
 	this.overTagTooltip = null;
 	this.container = container;
-	this.selectingChangeListeners = [];
+	this.pickingChangeListeners = [];
 	this.selectorChangeListeners = [];
 
 	container.addEventListener("mouseover", this.onContainerMouseOver.bind(this));
-	container.addEventListener("click", function() {
-		self.setSelecting(false);
-	});
-
-	this.createTagTooltip = function() {
-		var tooltip = document.createElement("div");
-		tooltip.textContent = this.selector.substring(this.selector.lastIndexOf(">") + 1);
-
-		tooltip.style.color = "white";
-		tooltip.style.backgroundColor = "red";
-		tooltip.style.position = "absolute";
-		tooltip.style.zIndex = "99999999";
-		tooltip.style.marginTop = "-22px";
-		tooltip.style.marginLeft = "-1px";
-		tooltip.style.padding = "2px 6px";
-		tooltip.style.fontFamily = "sans-serif";
-		tooltip.style.fontSize = "12px";
-		tooltip.style.opacity = ".8";
-		tooltip.style.pointerEvents = "none";
-		tooltip.style.lineHeight = "1.4";
-
-		return tooltip;
-	}
+	container.addEventListener("click", this.onContainerClick.bind(this));
 }
 
 DomSelector.prototype.addSelectorChangeListener = function(listener) {
 	this.selectorChangeListeners.push(listener);
 };
 
-DomSelector.prototype.addSelectingChangeListener = function(listener) {
-	this.selectingChangeListeners.push(listener);
+DomSelector.prototype.addPickingChangeListener = function(listener) {
+	this.pickingChangeListeners.push(listener);
 };
 
 DomSelector.prototype.onContainerMouseOver = function(e) {
-	if (this.selecting) {
+	if (this.picking) {
 		this.setCurrentElement(e.target);
 	}
 };
 
-DomSelector.prototype.setSelecting = function(newValue) {
-	this.selecting = newValue;
-	for (var listener of this.selectingChangeListeners) {
-		listener(newValue);
+DomSelector.prototype.onContainerClick = function(e) {
+	this.setPicking(false);
+};
+
+DomSelector.prototype.setPicking = function(newValue) {
+	this.picking = newValue;
+	for (var i = 0; i < this.pickingChangeListeners.length; i++) {
+		this.pickingChangeListeners[i](newValue);
 	}
 	this.clearCurrentElement();
 };
@@ -74,7 +57,9 @@ DomSelector.prototype.setCurrentElement = function(element) {
 
 	this.updateCurrentSelectorFromCurrentElement();
 
-	this.overTagTooltip = this.createTagTooltip(this.element);
+	this.overTagTooltip = document.createElement("div");
+	this.overTagTooltip.style.cssText = this.tagTooltipCssText;
+	this.overTagTooltip.textContent = this.selector.substring(this.selector.lastIndexOf(">") + 1);
 
 	if (this.element.firstChild) {
 		this.element.insertBefore(this.overTagTooltip, this.element.firstChild);
@@ -111,8 +96,8 @@ DomSelector.prototype.setCurrentSelector = function(newSelector) {
 	}
 
 	this.selector = newSelector;
-	for (var listener of this.selectorChangeListeners) {
-		listener(newSelector);
+	for (var i = 0; i < this.selectorChangeListeners.length; i++) {
+		this.selectorChangeListeners[i](newSelector);
 	}
 
 	// Will throw an exception if selector is malformed
@@ -127,8 +112,12 @@ DomSelector.prototype.setCurrentSelector = function(newSelector) {
 DomSelector.getSelectorFromElement = function(element) {
 	var id = element.getAttribute("id");
 	var classes = [];
-	classes.push(...element.classList);
-	var classes = classes.filter(function (item) {
+	// .classList does not return an Array so we have to cast it
+	for (var i = 0; i < element.classList.length; i++) {
+		classes.push(element.classList[i]);
+	}
+	// We do not want to include our own class to the node path
+	classes = classes.filter(function (item) {
 		return item !== OUTLINE_CURRENT_ELEMENT_CLASS;
 	});
 
@@ -170,12 +159,13 @@ DomSelector.connectSelectorInput = function(domSelector, input) {
 
 	domSelector.addSelectorChangeListener(function (selector) {
 		input.value = selector;
+		input.setCustomValidity("");
 	});
 }
 
 DomSelector.connectPickerCheckbox = function(domSelector, checkbox) {
 	function updateCheckbox(e) {
-		domSelector.setSelecting(checkbox.checked);
+		domSelector.setPicking(checkbox.checked);
 	}
 
 	checkbox.addEventListener("input", updateCheckbox);
@@ -186,8 +176,8 @@ DomSelector.connectPickerCheckbox = function(domSelector, checkbox) {
 		updateCheckbox();
 	}
 
-	domSelector.addSelectingChangeListener(function (selecting) {
-		checkbox.checked = selecting;
+	domSelector.addPickingChangeListener(function (picking) {
+		checkbox.checked = picking;
 	});
 }
 
@@ -206,7 +196,7 @@ var StyleSheets = {
 			
 			for(var i = 0, l = document.styleSheets.length; i < l; ++i) {
 				// Exclude CSS @media specific styleSheets
-				if(typeof(document.styleSheets[i].media) == 'string' ?
+				if(typeof(document.styleSheets[i].media) == "string" ?
 				 !document.styleSheets[i].media : !document.styleSheets[i].media.mediaText) {
 					sheet = document.styleSheets[i];
 				}
