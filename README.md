@@ -13,7 +13,9 @@ To use it with simple HTML inputs, call the `createFromPlainHtmlInputs`:
 	<p><label>
 		<span>CSS selector:</span>
 		<input type="text" id="dom-selector-input-text" />
-		<input type="checkbox" id="dom-selector-input-checkbox" />
+		<input type="checkbox" id="dom-selector-show-outline" title="Show outlines" />
+		<input type="checkbox" id="dom-selector-unique" title="Select only one node" />
+		<input type="checkbox" id="dom-selector-toggle-picker" title="Pick a dom node" />
 	</label></p>
 </section>
 ```
@@ -22,7 +24,9 @@ To use it with simple HTML inputs, call the `createFromPlainHtmlInputs`:
 DomSelector.createFromPlainHtmlInputs(
 	document.getElementById("where-tag-can-be-got"),
 	document.getElementById("dom-selector-input-text"),
-	document.getElementById("dom-selector-input-checkbox")
+	document.getElementById("dom-selector-input-toggle-picker"),
+	document.getElementById("dom-selector-input-unique"),
+	document.getElementById("dom-selector-input-show-outline")
 );
 ```
 

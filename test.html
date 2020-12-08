@@ -2062,7 +2062,9 @@
 			<p><label id="fw-dom-selector-field-group">
 				<span id="fw-dom-selector-field-label">CSS selector:</span>
 				<input type="text" id="fw-dom-selector" />
-				<input type="checkbox" id="fw-dom-selector-isover" />
+				<input type="checkbox" id="fw-dom-selector-show-outline" title="Show outlines" />
+				<input type="checkbox" id="fw-dom-selector-unique" title="Select only one node" />
+				<input type="checkbox" id="fw-dom-selector-isover" title="Pick a dom node" />
 			</label></p>
 		</section>
 		<style>
@@ -2105,7 +2107,11 @@ a {
 		<script>
 
 DomSelector.createFromPlainHtmlInputs(
-	document.body, document.getElementById("fw-dom-selector"), document.getElementById("fw-dom-selector-isover")
+	document.body,
+	document.getElementById("fw-dom-selector"),
+	document.getElementById("fw-dom-selector-isover"),
+	document.getElementById("fw-dom-selector-unique"),
+	document.getElementById("fw-dom-selector-show-outline")
 );
 
 		</script>
