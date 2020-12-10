@@ -2058,14 +2058,23 @@
 		<div id="reviewDialog" data-async-context="async_id_prefix:" data-jiis="up" data-async-type="reviewDialog" data-async-context-required="async_id_prefix" class="y yp"></div>
 
 
-		<section id="fw-dom-selector-toolbar">
-			<p><label id="fw-dom-selector-field-group">
-				<span id="fw-dom-selector-field-label">CSS selector:</span>
-				<input type="text" id="fw-dom-selector" />
-				<input type="checkbox" id="fw-dom-selector-show-outline" title="Show outlines" />
-				<input type="checkbox" id="fw-dom-selector-unique" title="Select only one node" />
-				<input type="checkbox" id="fw-dom-selector-isover" title="Pick a dom node" />
-			</label></p>
+		<section class="fw-css-rule-input-toolbar">
+			<p class="fw-css-rule-input-field-group">
+				<label for="fw-css-rule-input" class="fw-css-rule-input-field-label">CSS selector:</label>
+				<span class="fw-css-rule-input-group">
+					<span class="fw-css-rule-input-group-row">
+						<span class="fw-css-rule-input-path" id="fw-css-rule-input-path"></span>
+						<input type="checkbox" id="fw-css-rule-input-isover" title="Pick a dom node" />
+						<input type="checkbox" id="fw-css-rule-input-unique" title="Select only one node" />
+					</span>
+					<span class="fw-css-rule-input-group-row">
+						<input type="text" class="fw-css-rule-input" id="fw-css-rule-input" />
+						<span id="fw-css-rule-input-count">-</span>
+						<input type="checkbox" id="fw-css-rule-input-show-outline" title="Show outlines" />
+						<input type="checkbox" id="fw-css-rule-input-shortest" title="Always show the shortest css selector it can" />
+					</span>
+				</span>
+			</p>
 		</section>
 		<style>
 
@@ -2073,7 +2082,7 @@ a {
 	pointer-events: none;
 }
 
-#fw-dom-selector-toolbar {
+.fw-css-rule-input-toolbar {
 	position: fixed;
 	left: 0;
 	right: 0;
@@ -2081,37 +2090,63 @@ a {
 	background-color: rgba(255,255,255,.6);
 }
 
-#fw-dom-selector-toolbar p {
+.fw-css-rule-input-toolbar p {
 	margin: 0;
 	padding: 6px;
 }
 
-#fw-dom-selector-field-group {
+.fw-css-rule-input-field-group {
+	display: flex;
+	width: 100%;
+	align-items: center;
+	justify-content: center;
+}
+
+.fw-css-rule-input-label,
+.fw-css-rule-input-group {
+	display: block;
+	width: auto;
+}
+
+.fw-css-rule-input-group {
+	flex: 1;
+	max-width: 80%;
+}
+
+.fw-css-rule-input-group-row {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 }
 
-#fw-dom-selector-label,
-#fw-dom-selector {
+.fw-css-rule-input-path,
+.fw-css-rule-input {
 	display: block;
 	width: auto;
-}
-
-#fw-dom-selector {
 	flex: 1;
 }
 
+.fw-css-rule-input-path {
+	overflow: hidden;
+	white-space: nowrap;
+}
+
 		</style>
+		<script type="module">//import { finder } from 'https://medv.io/finder/finder.js'; window.finder = finder;</script>
+		<script type="text/javascript" src="stylesheets.js"></script>
 		<script type="text/javascript" src="dom-selector.js"></script>
+		<script type="text/javascript" src="css-selector-picker.js"></script>
 		<script>
 
-DomSelector.createFromPlainHtmlInputs(
+var cssRuleInput = CssSelectorPicker.createFromPlainHtmlInputs(
 	document.body,
-	document.getElementById("fw-dom-selector"),
-	document.getElementById("fw-dom-selector-isover"),
-	document.getElementById("fw-dom-selector-unique"),
-	document.getElementById("fw-dom-selector-show-outline")
+	document.getElementById("fw-css-rule-input"),
+	document.getElementById("fw-css-rule-input-count"),
+	document.getElementById("fw-css-rule-input-path"),
+	document.getElementById("fw-css-rule-input-isover"),
+	document.getElementById("fw-css-rule-input-unique"),
+	document.getElementById("fw-css-rule-input-show-outline"),
+	document.getElementById("fw-css-rule-input-shortest")
 );
 
 		</script>

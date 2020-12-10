@@ -2,9 +2,7 @@
 
 (function() {
 
-var OUTLINE_CURRENT_ELEMENT_CLASS = "fw-dom-selector-over-outline";
-
-function DomSelector(container) {
+function DomSelector(targetArea) {
 	var self = this;
 
 	this.overCssText = "outline: 1px dashed red !important;";
@@ -19,18 +17,23 @@ function DomSelector(container) {
 	this.overStyleSheetRule = null;
 	this.element = null;
 	this.overTagTooltip = null;
-	this.container = container;
+	this.targetArea = targetArea;
 	this.pickingChangeListeners = [];
+	this.pickListeners = [];
 	this.selectorChangeListeners = [];
 	this.uniqueChangeListeners = [];
 	this.outlineEnabledChangeListeners = [];
 
-	container.addEventListener("mouseover", this.onContainerMouseOver.bind(this));
-	container.addEventListener("click", this.onContainerClick.bind(this));
+	targetArea.addEventListener("mouseover", this.onTargetAreaMouseOver.bind(this));
+	targetArea.addEventListener("click", this.onContainerClick.bind(this));
 }
 
 DomSelector.prototype.addSelectorChangeListener = function(listener) {
 	this.selectorChangeListeners.push(listener);
+};
+
+DomSelector.prototype.addPickListener = function(listener) {
+	this.pickListeners.push(listener);
 };
 
 DomSelector.prototype.addPickingChangeListener = function(listener) {
@@ -45,14 +48,23 @@ DomSelector.prototype.addOutlineEnabledChangeListener = function(listener) {
 	this.outlineEnabledChangeListeners.push(listener);
 };
 
-DomSelector.prototype.onContainerMouseOver = function(e) {
+DomSelector.prototype.onTargetAreaMouseOver = function(e) {
 	if (this.picking) {
 		this.setCurrentElement(e.target);
 	}
 };
 
 DomSelector.prototype.onContainerClick = function(e) {
+	if (this.picking) {
+		this.pick();
+	}
+};
+
+DomSelector.prototype.pick = function() {
 	this.setPicking(false);
+	for (var i = 0; i < this.pickListeners.length; i++) {
+		this.pickListeners[i](this.element, this.selector);
+	}
 };
 
 DomSelector.prototype.setPicking = function(newValue) {
@@ -76,12 +88,9 @@ DomSelector.prototype.setUnique = function(newValue) {
 
 DomSelector.prototype.setOutlineEnabled = function(newValue) {
 	this.clearSelectorOutlines();
-
-	if (newValue) {
-		this.showSelectorOutlines();
-	}
-
 	this.outlineEnabled = newValue;
+	this.updateSelectorOutlines();
+
 	for (var i = 0; i < this.outlineEnabledChangeListeners.length; i++) {
 		this.outlineEnabledChangeListeners[i](newValue);
 	}
@@ -119,7 +128,7 @@ DomSelector.prototype.clearCurrentElement = function() {
 };
 
 DomSelector.prototype.updateCurrentSelectorFromCurrentElement = function() {
-	this.setCurrentSelector(DomSelector.getSelectorFromElement(this.container, this.element, this.unique));
+	this.setCurrentSelector(DomSelector.getSelectorFromElement(this.targetArea, this.element, this.unique));
 };
 
 DomSelector.prototype.setCurrentSelector = function(newSelector) {
@@ -130,17 +139,19 @@ DomSelector.prototype.setCurrentSelector = function(newSelector) {
 		this.selectorChangeListeners[i](newSelector);
 	}
 
-	this.showSelectorOutlines();
+	this.updateSelectorOutlines();
 };
 
-DomSelector.prototype.showSelectorOutlines = function() {
-	// Will throw an exception if selector is malformed
-	this.container.querySelectorAll(this.selector);
+DomSelector.prototype.updateSelectorOutlines = function() {
+	if (this.outlineEnabled) {
+		// Will throw an exception if selector is malformed
+		this.targetArea.querySelectorAll(this.selector);
 
-	this.selectedStyleSheetRule = StyleSheets.Rule.create(this.selector);
-	this.selectedStyleSheetRule.style.cssText = this.selectedCssText;
-	this.overStyleSheetRule = StyleSheets.Rule.create(this.selector + "." + OUTLINE_CURRENT_ELEMENT_CLASS);
-	this.overStyleSheetRule.style.cssText = this.overCssText;
+		this.selectedStyleSheetRule = StyleSheets.Rule.create(this.selector);
+		this.selectedStyleSheetRule.style.cssText = this.selectedCssText;
+		this.overStyleSheetRule = StyleSheets.Rule.create(this.selector + "." + OUTLINE_CURRENT_ELEMENT_CLASS);
+		this.overStyleSheetRule.style.cssText = this.overCssText;
+	}
 };
 
 DomSelector.prototype.clearSelectorOutlines = function() {
@@ -153,6 +164,8 @@ DomSelector.prototype.clearSelectorOutlines = function() {
 		this.overStyleSheetRule = null;
 	}
 };
+
+var OUTLINE_CURRENT_ELEMENT_CLASS = DomSelector.OUTLINE_CURRENT_ELEMENT_CLASS = "fw-dom-selector-over-outline";
 
 DomSelector.getSelectorFromElement = function(container, element, unique) {
 	if (container.isEqualNode(element)) {
@@ -271,7 +284,12 @@ DomSelector.connectSelectorInput = function(domSelector, input) {
 
 DomSelector.connectPickerCheckbox = function(domSelector, checkbox) {
 	function updateCheckbox(e) {
-		domSelector.setPicking(checkbox.checked);
+		try {
+			domSelector.setPicking(checkbox.checked);
+		}
+		catch (err) {
+			console.error(err);
+		}
 	}
 
 	checkbox.addEventListener("input", updateCheckbox);
@@ -289,7 +307,12 @@ DomSelector.connectPickerCheckbox = function(domSelector, checkbox) {
 
 DomSelector.connectUniqueCheckbox = function(domSelector, checkbox) {
 	function updateCheckbox(e) {
-		domSelector.setUnique(checkbox.checked);
+		try {
+			domSelector.setUnique(checkbox.checked);
+		}
+		catch (err) {
+			console.error(err);
+		}
 	}
 
 	checkbox.addEventListener("input", updateCheckbox);
@@ -307,7 +330,12 @@ DomSelector.connectUniqueCheckbox = function(domSelector, checkbox) {
 
 DomSelector.connectOutlineCheckbox = function(domSelector, checkbox) {
 	function updateCheckbox(e) {
-		domSelector.setOutlineEnabled(checkbox.checked);
+		try {
+			domSelector.setOutlineEnabled(checkbox.checked);
+		}
+		catch (err) {
+			console.error(err);
+		}
 	}
 
 	checkbox.addEventListener("input", updateCheckbox);
@@ -324,7 +352,7 @@ DomSelector.connectOutlineCheckbox = function(domSelector, checkbox) {
 }
 
 DomSelector.createFromPlainHtmlInputs = function(container, selectorInput, pickerCheckbox, uniqueCheckbox, outlineCheckbox) {
-	var domSelector = new DomSelector(document.body);
+	var domSelector = new DomSelector(container);
 	DomSelector.connectSelectorInput(domSelector, selectorInput);
 	DomSelector.connectPickerCheckbox(domSelector, pickerCheckbox);
 	DomSelector.connectUniqueCheckbox(domSelector, uniqueCheckbox);
@@ -332,49 +360,6 @@ DomSelector.createFromPlainHtmlInputs = function(container, selectorInput, picke
 
 	return domSelector;
 }
-
-var StyleSheets = {
-	Rule: {
-		create: function(rule) {
-			var sheet;
-			
-			for(var i = 0, l = document.styleSheets.length; i < l; ++i) {
-				// Exclude CSS @media specific styleSheets
-				if(typeof(document.styleSheets[i].media) == "string" ?
-				 !document.styleSheets[i].media : !document.styleSheets[i].media.mediaText) {
-					sheet = document.styleSheets[i];
-				}
-			}
-
-			// Append inline stylesheet if none found
-			if(!sheet) {
-				var styleTag = document.createElement("style");
-				styleTag.setAttribute("type", "text/css");
-				document.head.appendChild(styleTag);
-				sheet = styleTag.sheet;
-			}
-
-			// Create CSS rule
-			var index = sheet.cssRules.length;
-			sheet.insertRule(rule+"{}", index);
-
-			// Return the new rule object, so we can modify or drop it
-			return sheet.cssRules[index];
-		},
-		drop: function(rule) {
-			var rules = rule.parentStyleSheet.cssRules;
-
-			for(var i = 0, l = rules.length; i < l; ++i) {
-				if(rules[i] === rule) {
-					rule.parentStyleSheet.deleteRule(i);
-
-					// Stop when first found
-					return;
-				}
-			}
-		}
-	}
-};
 
 window.DomSelector = DomSelector;
 
