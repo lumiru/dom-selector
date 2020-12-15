@@ -151,7 +151,7 @@ CssSelectorPicker.getShortestSelector = function(targetArea, selector) {
 				var part = selectorParts[i];
 
 				for (var j = 0; j < selectorParts.length; j++) {
-					if (i !== j && isSelectorEquivalent(prefix + part + selectorParts[j])) {
+					if (i !== j) {
 						var part2 = selectorParts[j];
 
 						for (var k = 0; k < selectorParts.length; k++) {
