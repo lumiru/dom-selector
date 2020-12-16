@@ -5,7 +5,7 @@ import * as StyleSheets from './stylesheets';
 class CssSelectorPicker {
 	private selectedCssText = "outline: 1px dashed blue !important;";
 
-	private targetArea: Element;
+	private readonly targetArea: Element;
 	private shortestRule = false;
 	private outlineEnabled = false;
 	private selectedStyleSheetRule?: CSSStyleRule;

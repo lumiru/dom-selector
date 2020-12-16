@@ -1,4 +1,3 @@
-
 import * as StyleSheets from "./stylesheets";
 
 export class DomSelector {
@@ -16,7 +15,7 @@ export class DomSelector {
 	private overStyleSheetRule?: CSSStyleRule;
 	private element?: Element;
 	private overTagTooltip?: Element;
-	private targetArea: Element;
+	private readonly targetArea: Element;
 	private pickingChangeListeners: ((val: boolean) => void)[] = [];
 	private pickListeners: ((element: Element | null, selector: string) => void)[] = [];
 	private selectorChangeListeners: ((val: string) => void)[] = [];
@@ -252,20 +251,23 @@ export class DomSelector {
 					);
 	
 					if (found) {
-						const currentNodePath = pathes.find(function (item) { return item[0] && element.isEqualNode(item[0]); });
+						const currentNodePath = pathes.find(function (item) {
+							const itemElement = item[item.length - 1];
+							return itemElement && element.isEqualNode(itemElement);
+						});
 						const firstDivergence = currentNodePath && currentNodePath[1];
 
 						if (firstDivergence) {
+							let currentElement = firstDivergence;
 							let previousSiblingsCount = 0;
 
-							while (firstDivergence.previousElementSibling) {
+							while (currentElement.previousElementSibling) {
 								++previousSiblingsCount;
+								currentElement = currentElement.previousElementSibling;
 							}
 
-							const firstDifferentElementSelector =
-								DomSelector.getSelectorFromElement(container, firstDivergence, false) +
-								":nth-child(" + previousSiblingsCount + ")";
-							selector = firstDifferentElementSelector;
+							selector = DomSelector.getSelectorFromElement(container, firstDivergence, false) +
+								":nth-child(" + (previousSiblingsCount + 1) + ")";
 							const innerSelector = DomSelector.getSelectorFromElement(firstDivergence, element, true);
 							if (innerSelector) {
 								selector += ">" + innerSelector;
