@@ -1,37 +1,37 @@
 
-import { DomSelector } from './dom-selector';
-import * as StyleSheets from './stylesheets';
+import DomSelector from './dom-selector';
+import OutlineManager from "./outline-manager";
+import CssRuleOutliner from "./css-rule-outliner";
 
-class CssSelectorPicker {
-	private selectedCssText = "outline: 1px dashed blue !important;";
-
+export default class CssSelectorPicker {
 	private readonly targetArea: Element;
+	private readonly selectedOutliner: CssRuleOutliner;
 	private shortestRule = false;
 	private outlineEnabled = false;
-	private selectedStyleSheetRule?: CSSStyleRule;
 	private selectorChangeListeners: ((val: string) => void)[] = [];
 	private shortestRuleChangeListeners: ((val: boolean) => void)[] = [];
 	private outlineEnabledChangeListeners: ((val: boolean) => void)[] = [];
 	private selector = "";
 
-	public constructor(targetArea: Element) {
+	public constructor(targetArea: Element, outlineManager: OutlineManager) {
 		this.targetArea = targetArea;
+		this.selectedOutliner = new CssRuleOutliner(outlineManager, "outline: 1px dashed blue !important;");
 	}
 
-	public addSelectorChangeListener(listener: (val: string) => void) {
+	public addSelectorChangeListener(listener: (val: string) => void): void {
 		this.selectorChangeListeners.push(listener);
 	}
 
-	public addShortestRuleChangeListener(listener: (val: boolean) => void) {
+	public addShortestRuleChangeListener(listener: (val: boolean) => void): void {
 		this.shortestRuleChangeListeners.push(listener);
 	}
 
-	public addOutlineEnabledChangeListener(listener: (val: boolean) => void) {
+	public addOutlineEnabledChangeListener(listener: (val: boolean) => void): void {
 		this.outlineEnabledChangeListeners.push(listener);
 	}
 
-	public setSelector(selector: string) {
-		let oldSelector = this.selector;
+	public setSelector(selector: string): void {
+		const oldSelector = this.selector;
 		this.clearSelectorOutlines();
 		this.selector = selector;
 
@@ -46,7 +46,7 @@ class CssSelectorPicker {
 		}
 	}
 
-	public setShortestRule(shortestRule: boolean) {
+	public setShortestRule(shortestRule: boolean): void {
 		this.shortestRule = shortestRule;
 
 		for (const listener of this.shortestRuleChangeListeners) {
@@ -54,7 +54,7 @@ class CssSelectorPicker {
 		}
 	}
 
-	public setOutlineEnabled(newValue: boolean) {
+	public setOutlineEnabled(newValue: boolean): void {
 		this.clearSelectorOutlines();
 		this.outlineEnabled = newValue;
 		this.updateSelectorOutlines();
@@ -64,8 +64,8 @@ class CssSelectorPicker {
 		}
 	}
 
-	public applyShortestRule(handle: boolean = true) {
-		let oldSelector = this.selector;
+	public applyShortestRule(handle = true): void {
+		const oldSelector = this.selector;
 		this.selector = CssSelectorPicker.getShortestSelector(this.targetArea, this.selector);
 
 		if (oldSelector !== this.selector && handle) {
@@ -73,31 +73,27 @@ class CssSelectorPicker {
 		}
 	}
 
-	public handleSelectorChange() {
+	public handleSelectorChange(): void {
 		for (const listener of this.selectorChangeListeners) {
 			listener(this.selector);
 		}
 	}
 
-	public updateSelectorOutlines() {
+	public updateSelectorOutlines(): void {
 		if (this.outlineEnabled) {
 			// Will throw an exception if selector is malformed
 			this.targetArea.querySelectorAll(this.selector);
 
-			this.selectedStyleSheetRule = StyleSheets.Rule.create(this.selector);
-			this.selectedStyleSheetRule.style.cssText = this.selectedCssText;
+			this.selectedOutliner.outline(this.selector);
 		}
 	}
 
-	public clearSelectorOutlines() {
-		if (this.selectedStyleSheetRule) {
-			StyleSheets.Rule.drop(this.selectedStyleSheetRule);
-			this.selectedStyleSheetRule = undefined;
-		}
+	public clearSelectorOutlines(): void {
+		this.selectedOutliner.clear();
 	}
 
-	public static getShortestSelector(targetArea: Element, selector: string) {
-		let baseItemList = targetArea.querySelectorAll(selector);
+	public static getShortestSelector(targetArea: Element, selector: string): string {
+		const baseItemList = targetArea.querySelectorAll(selector);
 
 		// // Use finder from https://github.com/antonmedv/finder
 		// // It does not work with selection of multiple entities
@@ -108,7 +104,7 @@ class CssSelectorPicker {
 		// 	}).replace(/ > /g, ">");
 		// }
 
-		let baseItems: Element[] = [];
+		const baseItems: Element[] = [];
 		for (let i = 0; i < baseItemList.length; i++) {
 			baseItems.push(baseItemList.item(i));
 		}
@@ -132,7 +128,7 @@ class CssSelectorPicker {
 
 			if (selectorParts.length > 1) {
 				for (let i = 0; i < selectorParts.length; i++) {
-					let part = selectorParts[i];
+					const part = selectorParts[i];
 
 					if (isSelectorEquivalent(prefix + part)) {
 						return prefix + part;
@@ -142,7 +138,7 @@ class CssSelectorPicker {
 
 			if (selectorParts.length > 2) {
 				for (let i = 0; i < selectorParts.length; i++) {
-					let part = selectorParts[i];
+					const part = selectorParts[i];
 
 					for (let j = 0; j < selectorParts.length; j++) {
 						if (i !== j && isSelectorEquivalent(prefix + part + selectorParts[j])) {
@@ -154,11 +150,11 @@ class CssSelectorPicker {
 
 			if (selectorParts.length > 3) {
 				for (let i = 0; i < selectorParts.length; i++) {
-					let part = selectorParts[i];
+					const part = selectorParts[i];
 
 					for (let j = 0; j < selectorParts.length; j++) {
 						if (i !== j) {
-							let part2 = selectorParts[j];
+							const part2 = selectorParts[j];
 
 							for (let k = 0; k < selectorParts.length; k++) {
 								if (i !== k && j !== k && isSelectorEquivalent(prefix + part + part2 + selectorParts[k])) {
@@ -174,23 +170,23 @@ class CssSelectorPicker {
 		}
 
 
-		let lastChevronIndex = selector.lastIndexOf(">");
-		let lastElementSelector = selector.substring(lastChevronIndex + 1);
+		const lastChevronIndex = selector.lastIndexOf(">");
+		const lastElementSelector = selector.substring(lastChevronIndex + 1);
 
 		if (isSelectorEquivalent(lastElementSelector)) {
 			selector = getShortestSelectorPart("", lastElementSelector);
 		}
 		else if (lastChevronIndex > 0) {
-			let parentShortestSelector = CssSelectorPicker.getShortestSelector(targetArea, selector.substring(0, lastChevronIndex));
+			const parentShortestSelector = CssSelectorPicker.getShortestSelector(targetArea, selector.substring(0, lastChevronIndex));
 			selector = parentShortestSelector + ">" + lastElementSelector;
 
-			let selectorWithoutChevrons = selector.replace(/>/g," ");
+			const selectorWithoutChevrons = selector.replace(/>/g," ");
 			if (isSelectorEquivalent(selectorWithoutChevrons)) {
 				selector = selectorWithoutChevrons;
 
-				let splittedSelectorItems = selector.split(" ");
+				const splittedSelectorItems = selector.split(" ");
 				if (splittedSelectorItems.length > 2) {
-					let extremsSelector = splittedSelectorItems[0] + " " + splittedSelectorItems[splittedSelectorItems.length - 1];
+					const extremsSelector = splittedSelectorItems[0] + " " + splittedSelectorItems[splittedSelectorItems.length - 1];
 
 					if (isSelectorEquivalent(extremsSelector)) {
 						selector = extremsSelector;
@@ -198,14 +194,14 @@ class CssSelectorPicker {
 				}
 			}
 
-			let lastElementPrefix = selector.substring(0, selector.length - lastElementSelector.length);
+			const lastElementPrefix = selector.substring(0, selector.length - lastElementSelector.length);
 			selector = getShortestSelectorPart(lastElementPrefix, lastElementSelector);
 		}
 
 		return selector;
 	}
 
-	public static connectSelectorInput(cssSelectorPicker: CssSelectorPicker, input: HTMLInputElement) {
+	public static connectSelectorInput(cssSelectorPicker: CssSelectorPicker, input: HTMLInputElement): void {
 		function updateInput() {
 			cssSelectorPicker.setShortestRule(false);
 
@@ -236,7 +232,7 @@ class CssSelectorPicker {
 		});
 	}
 
-	public static connectShortestCheckbox(cssSelectorPicker: CssSelectorPicker, checkbox: HTMLInputElement) {
+	public static connectShortestCheckbox(cssSelectorPicker: CssSelectorPicker, checkbox: HTMLInputElement): void {
 		function updateCheckbox() {
 			cssSelectorPicker.setShortestRule(checkbox.checked);
 		}
@@ -254,7 +250,7 @@ class CssSelectorPicker {
 		});
 	}
 
-	public static connectOutlineCheckbox(cssSelectorPicker: CssSelectorPicker, checkbox: HTMLInputElement) {
+	public static connectOutlineCheckbox(cssSelectorPicker: CssSelectorPicker, checkbox: HTMLInputElement): void {
 		function updateCheckbox() {
 			try {
 				cssSelectorPicker.setOutlineEnabled(checkbox.checked);
@@ -277,9 +273,9 @@ class CssSelectorPicker {
 		});
 	}
 
-	public static connectCounter(cssSelectorPicker: CssSelectorPicker, counter: Element) {
+	public static connectCounter(cssSelectorPicker: CssSelectorPicker, counter: Element): void {
 		cssSelectorPicker.addSelectorChangeListener(function (selector) {
-			let selectedItems = document.querySelectorAll(selector);
+			const selectedItems = document.querySelectorAll(selector);
 			counter.textContent = selectedItems.length.toString();
 		});
 	}
@@ -293,19 +289,24 @@ class CssSelectorPicker {
 		uniqueCheckbox: HTMLInputElement,
 		outlineCheckbox: HTMLInputElement,
 		shortestCheckbox: HTMLInputElement
-	) {
-		let cssSelectorPicker = new CssSelectorPicker(targetArea);
-		let domSelector = new DomSelector(targetArea);
+	): CssSelectorPicker {
+		const outlineManager = new OutlineManager();
+		const cssSelectorPicker = new CssSelectorPicker(targetArea, outlineManager);
+		const domSelector = new DomSelector(targetArea, outlineManager);
 
 		domSelector.addPickListener(function (_element, selector) {
 			cssSelectorPicker.setSelector(selector);
-			domSelector.setOutlineEnabled(false);
+		});
+		domSelector.addPickingChangeListener(function (picking) {
+			if (!picking) {
+				domSelector.setOutlineEnabled(false);
+			}
 		});
 		domSelector.addSelectorChangeListener(function (selector) {
 			pathContainer.textContent = selector;
 		});
 		cssSelectorPicker.addSelectorChangeListener(function (selector) {
-			let firstCurrentSelectedElement = document.querySelector(selector);
+			const firstCurrentSelectedElement = document.querySelector(selector);
 
 			if (firstCurrentSelectedElement) {
 				domSelector.setCurrentElement(firstCurrentSelectedElement);
@@ -322,5 +323,3 @@ class CssSelectorPicker {
 		return cssSelectorPicker;
 	}
 }
-
-(window as any).CssSelectorPicker = CssSelectorPicker;

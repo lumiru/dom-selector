@@ -1,18 +1,17 @@
-import * as StyleSheets from "./stylesheets";
+import CssRuleOutliner, {CssRuleOutlineArgs} from "./css-rule-outliner";
+import OutlineManager from "./outline-manager";
+import CombinedOutliners from "./combined-outliners";
 
-export class DomSelector {
+export default class DomSelector {
 	public static readonly OUTLINE_CURRENT_ELEMENT_CLASS = "fw-dom-selector-over-outline";
-	
-	private overCssText: string = "outline: 1px dashed red !important;";
-	private selectedCssText: string = "outline: 1px dashed green !important;";
-	private tagTooltipCssText: string = "color: white; background-color: red; position: absolute; z-index: 99999999; margin-top: -22px; margin-left: -1px; padding: 2px 6px; font-family: sans-serif; font-size: 12px; opacity: .8; pointer-events: none; line-height: 1.4;";
 
-	private picking: boolean = false;
-	private unique: boolean = false;
-	private outlineEnabled: boolean = false;
-	private selector: string = "";
-	private selectedStyleSheetRule?: CSSStyleRule;
-	private overStyleSheetRule?: CSSStyleRule;
+	private tagTooltipCssText = "color: white; background-color: red; position: absolute; z-index: 99999999; margin-top: -22px; margin-left: -1px; padding: 2px 6px; font-family: sans-serif; font-size: 12px; opacity: .8; pointer-events: none; line-height: 1.4;";
+
+	private picking = false;
+	private unique = false;
+	private outlineEnabled = false;
+	private selector = "";
+	private readonly outliner: CombinedOutliners<DomSelectorCombinedOutliners>;
 	private element?: Element;
 	private overTagTooltip?: Element;
 	private readonly targetArea: Element;
@@ -22,54 +21,60 @@ export class DomSelector {
 	private uniqueChangeListeners: ((val: boolean) => void)[] = [];
 	private outlineEnabledChangeListeners: ((val: boolean) => void)[] = [];
 
-	public constructor(targetArea: Element) {
+	public constructor(targetArea: Element, outlineManager: OutlineManager) {
 		this.targetArea = targetArea;
-		
+		const selectedOutliner = new CssRuleOutliner(new OutlineManager(), "outline: 1px dashed green !important;");
+		const overOutliner = new CssRuleOutliner(new OutlineManager(), "outline: 1px dashed red !important;");
+		this.outliner = new CombinedOutliners<DomSelectorCombinedOutliners>(outlineManager, {
+			list: selectedOutliner,
+			over: overOutliner
+		});
+
 		targetArea.addEventListener("mouseover", this.onTargetAreaMouseOver.bind(this));
 		targetArea.addEventListener("click", this.onContainerClick.bind(this));
 	}
 
-	public addSelectorChangeListener(listener: (val: string) => void) {
+	public addSelectorChangeListener(listener: (val: string) => void): void {
 		this.selectorChangeListeners.push(listener);
 	}
 
-	public addPickListener(listener: (element: Element | null, selector: string) => void) {
+	public addPickListener(listener: (element: Element | null, selector: string) => void): void {
 		this.pickListeners.push(listener);
 	}
 
-	public addPickingChangeListener(listener: (val: boolean) => void) {
+	public addPickingChangeListener(listener: (val: boolean) => void): void {
 		this.pickingChangeListeners.push(listener);
 	}
 
-	public addUniqueChangeListener(listener: (val: boolean) => void) {
+	public addUniqueChangeListener(listener: (val: boolean) => void): void {
 		this.uniqueChangeListeners.push(listener);
 	}
 
-	public addOutlineEnabledChangeListener(listener: (val: boolean) => void) {
+	public addOutlineEnabledChangeListener(listener: (val: boolean) => void): void {
 		this.outlineEnabledChangeListeners.push(listener);
 	}
 
-	private onTargetAreaMouseOver(e: Event) {
+	private onTargetAreaMouseOver(e: Event): void {
 		if (this.picking && e.target instanceof Element) {
 			this.setCurrentElement(e.target);
 		}
 	}
 
-	private onContainerClick() {
+	private onContainerClick = () => {
 		if (this.picking) {
 			this.pick();
 		}
-	}
+	};
 
-	public pick() {
+	public pick(): void {
 		this.setPicking(false);
-		
+
 		for (const listener of this.pickListeners) {
 			listener(this.element || null, this.selector);
 		}
 	}
 
-	public setPicking(newValue: boolean) {
+	public setPicking(newValue: boolean): void {
 		this.picking = newValue;
 		if (this.picking) {
 			this.setOutlineEnabled(true);
@@ -81,14 +86,14 @@ export class DomSelector {
 		this.clearCurrentElement();
 	}
 
-	public setUnique(newValue: boolean) {
+	public setUnique(newValue: boolean): void {
 		this.unique = newValue;
 		for (const listener of this.uniqueChangeListeners) {
 			listener(newValue);
 		}
 	}
 
-	public setOutlineEnabled(newValue: boolean) {
+	public setOutlineEnabled(newValue: boolean): void {
 		this.clearSelectorOutlines();
 		this.outlineEnabled = newValue;
 		this.updateSelectorOutlines();
@@ -98,7 +103,7 @@ export class DomSelector {
 		}
 	}
 
-	public setCurrentElement(element: Element) {
+	public setCurrentElement(element: Element): void {
 		this.clearCurrentElement();
 		element.classList.add(DomSelector.OUTLINE_CURRENT_ELEMENT_CLASS);
 		this.element = element;
@@ -121,7 +126,7 @@ export class DomSelector {
 		}
 	}
 
-	public clearCurrentElement() {
+	public clearCurrentElement(): void {
 		if (this.element) {
 			this.element.classList.remove(DomSelector.OUTLINE_CURRENT_ELEMENT_CLASS);
 
@@ -134,7 +139,7 @@ export class DomSelector {
 		this.overTagTooltip = undefined;
 	}
 
-	public updateCurrentSelectorFromCurrentElement() {
+	public updateCurrentSelectorFromCurrentElement(): void {
 		this.setCurrentSelector(
 			this.element ?
 			DomSelector.getSelectorFromElement(this.targetArea, this.element, this.unique) :
@@ -142,7 +147,7 @@ export class DomSelector {
 		);
 	}
 
-	public setCurrentSelector(newSelector: string) {
+	public setCurrentSelector(newSelector: string): void {
 		this.clearSelectorOutlines();
 		
 		this.selector = newSelector;
@@ -153,35 +158,28 @@ export class DomSelector {
 		this.updateSelectorOutlines();
 	}
 
-	public updateSelectorOutlines() {
+	public updateSelectorOutlines(): void {
 		if (this.outlineEnabled) {
 			// Will throw an exception if selector is malformed
 			this.targetArea.querySelectorAll(this.selector);
-			
-			this.selectedStyleSheetRule = StyleSheets.Rule.create(this.selector);
-			this.selectedStyleSheetRule.style.cssText = this.selectedCssText;
-			this.overStyleSheetRule = StyleSheets.Rule.create(this.selector + "." + DomSelector.OUTLINE_CURRENT_ELEMENT_CLASS);
-			this.overStyleSheetRule.style.cssText = this.overCssText;
+
+			this.outliner.outline({
+				list: [this.selector],
+				over: [this.selector + "." + DomSelector.OUTLINE_CURRENT_ELEMENT_CLASS]
+			});
 		}
 	}
 
-	public clearSelectorOutlines() {
-		if (this.selectedStyleSheetRule) {
-			StyleSheets.Rule.drop(this.selectedStyleSheetRule);
-			this.selectedStyleSheetRule = undefined;
-		}
-		if (this.overStyleSheetRule) {
-			StyleSheets.Rule.drop(this.overStyleSheetRule);
-			this.overStyleSheetRule = undefined;
-		}
+	public clearSelectorOutlines(): void {
+		this.outliner.clear();
 	}
 
-	public static getSelectorFromElement(container: Element, element: Element, unique: boolean) {
+	public static getSelectorFromElement(container: Element, element: Element, unique: boolean): string {
 		if (container.isEqualNode(element)) {
 			return "";
 		}
 	
-		let id = element.getAttribute("id");
+		const id = element.getAttribute("id");
 		let classes = [];
 		// .classList does not return an Array so we have to cast it
 		for (let i = 0; i < element.classList.length; i++) {
@@ -209,16 +207,16 @@ export class DomSelector {
 	
 		if (unique) {
 			try {
-				let selectedElements = container.querySelectorAll(selector);
+				const selectedElements = container.querySelectorAll(selector);
 	
 				// If several elements was found
 				if (selectedElements.length > 1) {
-					let pathes: Element[][] = [];
+					const paths: Element[][] = [];
 					for (let i = 0; i < selectedElements.length; i++) {
 						const item = selectedElements[i];
 
 						if (item) {
-							pathes.push([ item ]);
+							paths.push([ item ]);
 						}
 					}
 	
@@ -228,7 +226,7 @@ export class DomSelector {
 	
 					// Note: Every element should have the same depth since the selector is restricted enough
 					do {
-						for (const item of pathes) {
+						for (const item of paths) {
 							const firstItemParent = item[0]?.parentNode;
 
 							if (firstItemParent instanceof Element) {
@@ -236,12 +234,12 @@ export class DomSelector {
 							}
 						}
 	
-						if (!pathes[0] || !pathes[0][0]) {
+						if (!paths[0] || !paths[0][0]) {
 							break;
 						}
 
-						testingParent = pathes[0] && pathes[0][0];
-						if (pathes.every(function (v) { return v[0] && testingParent.isEqualNode(v[0]); })) {
+						testingParent = paths[0] && paths[0][0];
+						if (paths.every(function (v) { return v[0] && testingParent.isEqualNode(v[0]); })) {
 							found = true;
 						}
 					} while (
@@ -251,7 +249,7 @@ export class DomSelector {
 					);
 	
 					if (found) {
-						const currentNodePath = pathes.find(function (item) {
+						const currentNodePath = paths.find(function (item) {
 							const itemElement = item[item.length - 1];
 							return itemElement && element.isEqualNode(itemElement);
 						});
@@ -282,9 +280,9 @@ export class DomSelector {
 		}
 	
 		return selector;
-	};
+	}
 	
-	public static connectSelectorInput(domSelector: DomSelector, input: HTMLInputElement) {
+	public static connectSelectorInput(domSelector: DomSelector, input: HTMLInputElement): void {
 		function updateInput() {
 			domSelector.clearCurrentElement();
 	
@@ -309,7 +307,7 @@ export class DomSelector {
 		});
 	}
 	
-	public static connectPickerCheckbox(domSelector: DomSelector, checkbox: HTMLInputElement) {
+	public static connectPickerCheckbox(domSelector: DomSelector, checkbox: HTMLInputElement): void {
 		function updateCheckbox() {
 			try {
 				domSelector.setPicking(checkbox.checked);
@@ -332,7 +330,7 @@ export class DomSelector {
 		});
 	}
 	
-	public static connectUniqueCheckbox(domSelector: DomSelector, checkbox: HTMLInputElement) {
+	public static connectUniqueCheckbox(domSelector: DomSelector, checkbox: HTMLInputElement): void {
 		function updateCheckbox() {
 			try {
 				domSelector.setUnique(checkbox.checked);
@@ -355,7 +353,7 @@ export class DomSelector {
 		});
 	}
 	
-	public static connectOutlineCheckbox(domSelector: DomSelector, checkbox: HTMLInputElement) {
+	public static connectOutlineCheckbox(domSelector: DomSelector, checkbox: HTMLInputElement): void {
 		function updateCheckbox() {
 			try {
 				domSelector.setOutlineEnabled(checkbox.checked);
@@ -384,8 +382,8 @@ export class DomSelector {
 		pickerCheckbox: HTMLInputElement,
 		uniqueCheckbox: HTMLInputElement,
 		outlineCheckbox: HTMLInputElement
-	) {
-		const domSelector = new DomSelector(container);
+	): DomSelector {
+		const domSelector = new DomSelector(container, new OutlineManager());
 		DomSelector.connectSelectorInput(domSelector, selectorInput);
 		DomSelector.connectPickerCheckbox(domSelector, pickerCheckbox);
 		DomSelector.connectUniqueCheckbox(domSelector, uniqueCheckbox);
@@ -396,4 +394,7 @@ export class DomSelector {
 	
 }
 
-(window as any).DomSelector = DomSelector;
+type DomSelectorCombinedOutliners = {
+	list: CssRuleOutlineArgs;
+	over: CssRuleOutlineArgs;
+};

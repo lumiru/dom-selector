@@ -1,10 +1,27 @@
 const path = require('path');
 
 module.exports = {
-    entry: './src/css-selector-picker.ts',
+    entry: './src/api.ts',
     devtool: 'inline-source-map',
+    optimization: {
+        minimize: false
+    },
     module: {
         rules: [
+            {
+                test: /\.tsx?$/,
+                enforce: 'pre',
+                use: [
+                    {
+                        options: {
+                            eslintPath: require.resolve('eslint'),
+
+                        },
+                        loader: require.resolve('eslint-loader'),
+                    },
+                ],
+                exclude: /node_modules/,
+            },
             {
                 test: /\.tsx?$/,
                 use: 'ts-loader',
