@@ -2063,7 +2063,7 @@
 				<label for="fw-css-rule-input" class="fw-css-rule-input-field-label">CSS selector:</label>
 				<span class="fw-css-rule-input-group">
 					<span class="fw-css-rule-input-group-row">
-						<span class="fw-css-rule-input-path" id="fw-css-rule-input-path"></span>
+						<span class="fw-css-rule-input-path" id="fw-css-rule-input-path" data-item-class="fw-css-path-selector-item"></span>
 						<input type="checkbox" id="fw-css-rule-input-isover" title="Pick a dom node" />
 						<input type="checkbox" id="fw-css-rule-input-unique" title="Select only one node" />
 					</span>
@@ -2136,7 +2136,7 @@ a {
 		<script type="text/javascript" src="dist/dom-selector.js"></script>
 		<script>
 
-let cssRuleInput = CssSelectorPicker.createFromPlainHtmlInputs(
+CssSelectorPicker.createFromPlainHtmlInputs(
 	document.body,
 	document.getElementById("fw-css-rule-input"),
 	document.getElementById("fw-css-rule-input-count"),

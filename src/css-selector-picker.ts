@@ -2,10 +2,11 @@
 import DomSelector from './dom-selector';
 import OutlineManager from "./outline-manager";
 import CssRuleOutliner from "./css-rule-outliner";
+import PathSelector from "./path-selector";
 
 export default class CssSelectorPicker {
 	private readonly targetArea: Element;
-	private readonly selectedOutliner: CssRuleOutliner;
+	private readonly outliner: CssRuleOutliner;
 	private shortestRule = false;
 	private outlineEnabled = false;
 	private selectorChangeListeners: ((val: string) => void)[] = [];
@@ -15,7 +16,7 @@ export default class CssSelectorPicker {
 
 	public constructor(targetArea: Element, outlineManager: OutlineManager) {
 		this.targetArea = targetArea;
-		this.selectedOutliner = new CssRuleOutliner(outlineManager, "outline: 1px dashed blue !important;");
+		this.outliner = new CssRuleOutliner(outlineManager, "outline: 1px dashed blue !important;");
 	}
 
 	public addSelectorChangeListener(listener: (val: string) => void): void {
@@ -44,6 +45,10 @@ export default class CssSelectorPicker {
 		if (oldSelector !== this.selector) {
 			this.handleSelectorChange();
 		}
+	}
+
+	public getSelector(): string {
+		return this.selector;
 	}
 
 	public setShortestRule(shortestRule: boolean): void {
@@ -84,12 +89,12 @@ export default class CssSelectorPicker {
 			// Will throw an exception if selector is malformed
 			this.targetArea.querySelectorAll(this.selector);
 
-			this.selectedOutliner.outline(this.selector);
+			this.outliner.outline(this.selector);
 		}
 	}
 
 	public clearSelectorOutlines(): void {
-		this.selectedOutliner.clear();
+		this.outliner.clear();
 	}
 
 	public static getShortestSelector(targetArea: Element, selector: string): string {
@@ -203,8 +208,6 @@ export default class CssSelectorPicker {
 
 	public static connectSelectorInput(cssSelectorPicker: CssSelectorPicker, input: HTMLInputElement): void {
 		function updateInput() {
-			cssSelectorPicker.setShortestRule(false);
-
 			try {
 				cssSelectorPicker.setSelector(input.value);
 
@@ -274,9 +277,35 @@ export default class CssSelectorPicker {
 	}
 
 	public static connectCounter(cssSelectorPicker: CssSelectorPicker, counter: Element): void {
-		cssSelectorPicker.addSelectorChangeListener(function (selector) {
+		function updateCounter(selector: string) {
 			const selectedItems = document.querySelectorAll(selector);
 			counter.textContent = selectedItems.length.toString();
+		}
+
+		cssSelectorPicker.addSelectorChangeListener(updateCounter);
+
+		if (cssSelectorPicker.getSelector()) {
+			updateCounter(cssSelectorPicker.getSelector());
+		}
+	}
+
+	public static connectPathSelector(
+		domSelector: DomSelector,
+		cssSelectorPicker: CssSelectorPicker,
+		pathContainer: Element,
+		outlineManager: OutlineManager
+	): void {
+		const pathSelector = new PathSelector(outlineManager, pathContainer);
+
+		domSelector.addSelectorChangeListener(function (selector) {
+			pathSelector.setSelector(selector);
+		});
+		pathSelector.addSelectorChangeListener(function (selector, internal) {
+			pathContainer.scrollLeft = pathContainer.scrollWidth - pathContainer.getBoundingClientRect().width + 1;
+
+			if (internal) {
+				cssSelectorPicker.setSelector(selector);
+			}
 		});
 	}
 
@@ -289,7 +318,7 @@ export default class CssSelectorPicker {
 		uniqueCheckbox: HTMLInputElement,
 		outlineCheckbox: HTMLInputElement,
 		shortestCheckbox: HTMLInputElement
-	): CssSelectorPicker {
+	): FullHtmlCssSelectorEnv {
 		const outlineManager = new OutlineManager();
 		const cssSelectorPicker = new CssSelectorPicker(targetArea, outlineManager);
 		const domSelector = new DomSelector(targetArea, outlineManager);
@@ -302,9 +331,6 @@ export default class CssSelectorPicker {
 				domSelector.setOutlineEnabled(false);
 			}
 		});
-		domSelector.addSelectorChangeListener(function (selector) {
-			pathContainer.textContent = selector;
-		});
 		cssSelectorPicker.addSelectorChangeListener(function (selector) {
 			const firstCurrentSelectedElement = document.querySelector(selector);
 
@@ -313,13 +339,24 @@ export default class CssSelectorPicker {
 			}
 		});
 
+		DomSelector.connectPickerCheckbox(domSelector, pickerCheckbox);
+		DomSelector.connectUniqueCheckbox(domSelector, uniqueCheckbox);
+		CssSelectorPicker.connectPathSelector(domSelector, cssSelectorPicker, pathContainer, outlineManager);
 		CssSelectorPicker.connectSelectorInput(cssSelectorPicker, selectorInput);
 		CssSelectorPicker.connectShortestCheckbox(cssSelectorPicker, shortestCheckbox);
 		CssSelectorPicker.connectOutlineCheckbox(cssSelectorPicker, outlineCheckbox);
 		CssSelectorPicker.connectCounter(cssSelectorPicker, counter);
-		DomSelector.connectPickerCheckbox(domSelector, pickerCheckbox);
-		DomSelector.connectUniqueCheckbox(domSelector, uniqueCheckbox);
 
-		return cssSelectorPicker;
+		return {
+			outlineManager,
+			domSelector,
+			cssSelectorPicker
+		};
 	}
+}
+
+export interface FullHtmlCssSelectorEnv {
+	outlineManager: OutlineManager;
+	domSelector: DomSelector;
+	cssSelectorPicker: CssSelectorPicker;
 }

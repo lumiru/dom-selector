@@ -17,7 +17,6 @@ export default class OutlineManager {
 		}
 
 		this.stack.push(outliner);
-		console.log(size);
 		outliner.show();
 	}
 
@@ -26,7 +25,6 @@ export default class OutlineManager {
 			if (outliner == this.stack[i]) {
 				outliner.hide();
 				this.stack.splice(i, 1);
-				console.log(i);
 				break;
 			}
 		}

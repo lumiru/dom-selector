@@ -1,8 +1,7 @@
 import Outliner from "./outliner";
 import OutlineManager from "./outline-manager";
-import {OutlineArgs} from "./combined-outliners";
 
-export default class CssRuleOutliner implements Outliner<[selector: string]> {
+export default class CssRuleOutliner implements Outliner<CssRuleOutlineArgs> {
 	private readonly manager: OutlineManager;
 	private readonly cssText: string;
 	private selector: string;
@@ -32,7 +31,6 @@ export default class CssRuleOutliner implements Outliner<[selector: string]> {
 		if (this.rule) {
 			CssRuleOutliner.dropRule(this.rule);
 			this.rule = undefined;
-			console.log("hide");
 		}
 	}
 
@@ -98,4 +96,4 @@ export default class CssRuleOutliner implements Outliner<[selector: string]> {
 	}
 }
 
-export type CssRuleOutlineArgs = OutlineArgs<CssRuleOutliner>;
+export type CssRuleOutlineArgs = [selector: string];
