@@ -1,15 +1,18 @@
 import Outliner from "./outliner";
 import OutlineManager from "./outline-manager";
+import {getSelectorFromElement} from "./utils";
 
 export default class CssRuleOutliner implements Outliner<CssRuleOutlineArgs> {
 	private readonly manager: OutlineManager;
 	private readonly cssText: string;
+	private readonly scopeSelector: string;
 	private selector: string;
 	private rule?: CSSStyleRule;
 
-	public constructor(manager: OutlineManager, cssText: string) {
+	public constructor(manager: OutlineManager, scope: Element, cssText: string) {
 		this.manager = manager;
 		this.cssText = cssText;
+		this.scopeSelector = getSelectorFromElement(document.body, scope, true).replace(":scope", "body");
 		this.selector = "";
 	}
 
@@ -22,7 +25,7 @@ export default class CssRuleOutliner implements Outliner<CssRuleOutlineArgs> {
 
 	public show(): void {
 		if (!this.rule && this.selector) {
-			this.rule = CssRuleOutliner.createRule(this.selector);
+			this.rule = CssRuleOutliner.createRule(this.selector.replace(":scope", this.scopeSelector));
 			this.rule.style.cssText = this.cssText;
 		}
 	}

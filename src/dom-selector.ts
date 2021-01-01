@@ -1,6 +1,7 @@
 import CssRuleOutliner, {CssRuleOutlineArgs} from "./css-rule-outliner";
 import OutlineManager from "./outline-manager";
 import CombinedOutliners from "./combined-outliners";
+import {getSelectorFromElement} from "./utils";
 
 export default class DomSelector {
 	public static readonly OUTLINE_CURRENT_ELEMENT_CLASS = "fw-dom-selector-over-outline";
@@ -23,8 +24,8 @@ export default class DomSelector {
 
 	public constructor(targetArea: Element, outlineManager: OutlineManager) {
 		this.targetArea = targetArea;
-		const selectedOutliner = new CssRuleOutliner(new OutlineManager(), "outline: 1px dashed green !important;");
-		const overOutliner = new CssRuleOutliner(new OutlineManager(), "outline: 1px dashed red !important;");
+		const selectedOutliner = new CssRuleOutliner(new OutlineManager(), targetArea, "outline: 1px dashed green !important;");
+		const overOutliner = new CssRuleOutliner(new OutlineManager(), targetArea, "outline: 1px dashed red !important;");
 		this.outliner = new CombinedOutliners<DomSelectorCombinedOutliners>(outlineManager, {
 			list: selectedOutliner,
 			over: overOutliner
@@ -175,113 +176,9 @@ export default class DomSelector {
 	}
 
 	public static getSelectorFromElement(container: Element, element: Element, unique: boolean): string {
-		if (container.isEqualNode(element)) {
-			return "";
-		}
-	
-		const id = element.getAttribute("id");
-		let classes = [];
-		// .classList does not return an Array so we have to cast it
-		for (let i = 0; i < element.classList.length; i++) {
-			classes.push(element.classList[i]);
-		}
-		// We do not want to include our own class to the node path
-		classes = classes.filter(function (item) {
-			return item !== DomSelector.OUTLINE_CURRENT_ELEMENT_CLASS;
-		});
-	
-		let selector = element.tagName.toLowerCase();
-	
-		if (id) {
-			selector += "#" + id;
-		}
-	
-		if (classes.length > 0) {
-			selector += "." + classes.join(".");
-		}
-	
-		const parent = element.parentNode;
-		if (parent instanceof Element && !document.body.isEqualNode(parent) && !container.isEqualNode(parent)) {
-			selector = DomSelector.getSelectorFromElement(container, parent, false) + ">" + selector;
-		}
-	
-		if (unique) {
-			try {
-				const selectedElements = container.querySelectorAll(selector);
-	
-				// If several elements was found
-				if (selectedElements.length > 1) {
-					const paths: Element[][] = [];
-					for (let i = 0; i < selectedElements.length; i++) {
-						const item = selectedElements[i];
-
-						if (item) {
-							paths.push([ item ]);
-						}
-					}
-	
-					// Search for the last common element in element breadcrumb
-					let found = false;
-					let testingParent: Element;
-	
-					// Note: Every element should have the same depth since the selector is restricted enough
-					do {
-						for (const item of paths) {
-							const firstItemParent = item[0]?.parentNode;
-
-							if (firstItemParent instanceof Element) {
-								item.unshift(firstItemParent);
-							}
-						}
-	
-						if (!paths[0] || !paths[0][0]) {
-							break;
-						}
-
-						testingParent = paths[0] && paths[0][0];
-						if (paths.every(function (v) { return v[0] && testingParent.isEqualNode(v[0]); })) {
-							found = true;
-						}
-					} while (
-						!found &&
-						!document.body.isEqualNode(testingParent.parentNode) &&
-						!container.isEqualNode(testingParent.parentNode)
-					);
-	
-					if (found) {
-						const currentNodePath = paths.find(function (item) {
-							const itemElement = item[item.length - 1];
-							return itemElement && element.isEqualNode(itemElement);
-						});
-						const firstDivergence = currentNodePath && currentNodePath[1];
-
-						if (firstDivergence) {
-							let currentElement = firstDivergence;
-							let previousSiblingsCount = 0;
-
-							while (currentElement.previousElementSibling) {
-								++previousSiblingsCount;
-								currentElement = currentElement.previousElementSibling;
-							}
-
-							selector = DomSelector.getSelectorFromElement(container, firstDivergence, false) +
-								":nth-child(" + (previousSiblingsCount + 1) + ")";
-							const innerSelector = DomSelector.getSelectorFromElement(firstDivergence, element, true);
-							if (innerSelector) {
-								selector += ">" + innerSelector;
-							}
-						}
-					}
-				}
-			}
-			catch (err) {
-				// console.warn(err);
-			}
-		}
-	
-		return selector;
+		return getSelectorFromElement(container, element, unique, [DomSelector.OUTLINE_CURRENT_ELEMENT_CLASS]);
 	}
-	
+
 	public static connectSelectorInput(domSelector: DomSelector, input: HTMLInputElement): void {
 		function updateInput() {
 			domSelector.clearCurrentElement();

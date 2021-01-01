@@ -16,7 +16,7 @@ export default class CssSelectorPicker {
 
 	public constructor(targetArea: Element, outlineManager: OutlineManager) {
 		this.targetArea = targetArea;
-		this.outliner = new CssRuleOutliner(outlineManager, "outline: 1px dashed blue !important;");
+		this.outliner = new CssRuleOutliner(outlineManager, targetArea, "outline: 1px dashed blue !important;");
 	}
 
 	public addSelectorChangeListener(listener: (val: string) => void): void {
@@ -135,7 +135,7 @@ export default class CssSelectorPicker {
 				for (let i = 0; i < selectorParts.length; i++) {
 					const part = selectorParts[i];
 
-					if (isSelectorEquivalent(prefix + part)) {
+					if (part && isSelectorEquivalent(prefix + part)) {
 						return prefix + part;
 					}
 				}
@@ -278,7 +278,7 @@ export default class CssSelectorPicker {
 
 	public static connectCounter(cssSelectorPicker: CssSelectorPicker, counter: Element): void {
 		function updateCounter(selector: string) {
-			const selectedItems = document.querySelectorAll(selector);
+			const selectedItems = cssSelectorPicker.targetArea.querySelectorAll(selector);
 			counter.textContent = selectedItems.length.toString();
 		}
 
@@ -295,7 +295,7 @@ export default class CssSelectorPicker {
 		pathContainer: Element,
 		outlineManager: OutlineManager
 	): void {
-		const pathSelector = new PathSelector(outlineManager, pathContainer);
+		const pathSelector = new PathSelector(outlineManager, cssSelectorPicker.targetArea, pathContainer);
 
 		domSelector.addSelectorChangeListener(function (selector) {
 			pathSelector.setSelector(selector);

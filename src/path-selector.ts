@@ -8,8 +8,8 @@ export default class PathSelector {
     private selector = "";
     private selectorChangeListeners: ((val: string, internal: boolean) => void)[] = [];
 
-    public constructor(outlineManager: OutlineManager, pathContainer: Element) {
-        this.outliner = new CssRuleOutliner(outlineManager, "outline: 1px dashed purple !important;");
+    public constructor(outlineManager: OutlineManager, targetArea: Element, pathContainer: Element) {
+        this.outliner = new CssRuleOutliner(outlineManager, targetArea, "outline: 1px dashed purple !important;");
         this.pathContainer = pathContainer;
     }
 
@@ -52,6 +52,10 @@ export default class PathSelector {
             for (; i < selectorItemParts.length; i++) {
                 const selectorItemPart = selectorItemParts[i] || "";
                 const selectorItemPath = selectorItemParts.slice(0, i + 1).join(">");
+
+                if (selectorItemPart === ":scope") {
+                    continue;
+                }
 
                 const selectorItemButton = document.createElement("button");
                 selectorItemButton.className = itemClass;
