@@ -2,12 +2,13 @@ import CssRuleOutliner, {CssRuleOutlineArgs} from "./css-rule-outliner";
 import OutlineManager from "./outline-manager";
 import CombinedOutliners from "./combined-outliners";
 import {getSelectorFromElement} from "./utils";
+import TypedEventTarget from "./typed-event-target";
 
 /**
  * A class that provides DOM element selection functionality with visual feedback.
  * Allows picking elements from a target area, generating unique selectors, and highlighting selected elements.
  */
-export default class DomSelector {
+export default class DomSelector extends (EventTarget as new() => TypedEventTarget<DomSelectorEventMap>) {
 	public static readonly OUTLINE_CURRENT_ELEMENT_CLASS = "fw-dom-selector-over-outline";
 
 	private tagTooltipCssText = "color: white; background-color: red; position: absolute; z-index: 99999999; margin-top: -22px; margin-left: -1px; padding: 2px 6px; font-family: sans-serif; font-size: 12px; opacity: .8; pointer-events: none; line-height: 1.4;";
@@ -20,11 +21,6 @@ export default class DomSelector {
 	private element?: Element;
 	private overTagTooltip?: Element;
 	private readonly targetArea: Element;
-	private pickingChangeListeners: ((val: boolean) => void)[] = [];
-	private pickListeners: ((element: Element | null, selector: string) => void)[] = [];
-	private selectorChangeListeners: ((val: string) => void)[] = [];
-	private uniqueChangeListeners: ((val: boolean) => void)[] = [];
-	private outlineEnabledChangeListeners: ((val: boolean) => void)[] = [];
 
 	/**
 	 * Creates a new DomSelector instance.
@@ -32,6 +28,7 @@ export default class DomSelector {
 	 * @param outlineManager - The manager handling element outlining
 	 */
 	public constructor(targetArea: Element, outlineManager: OutlineManager) {
+		super();
 		this.targetArea = targetArea;
 		const selectedOutliner = new CssRuleOutliner(new OutlineManager(), targetArea, "outline: 1px dashed green !important;");
 		const overOutliner = new CssRuleOutliner(new OutlineManager(), targetArea, "outline: 1px dashed red !important;");
@@ -44,44 +41,10 @@ export default class DomSelector {
 		targetArea.addEventListener("click", this.onContainerClick.bind(this));
 	}
 
-	/**
-	 * Adds a listener that will be called when the selector changes.
-	 * @param listener - Function to be called with the new selector value
-	 */
-	public addSelectorChangeListener(listener: (val: string) => void): void {
-		this.selectorChangeListeners.push(listener);
-	}
-
-	/**
-	 * Adds a listener that will be called when an element is picked.
-	 * @param listener - Function to be called with the picked element and its selector
-	 */
-	public addPickListener(listener: (element: Element | null, selector: string) => void): void {
-		this.pickListeners.push(listener);
-	}
-
-	/**
-	 * Adds a listener that will be called when picking mode changes.
-	 * @param listener - Function to be called with the new picking state
-	 */
-	public addPickingChangeListener(listener: (val: boolean) => void): void {
-		this.pickingChangeListeners.push(listener);
-	}
-
-	/**
-	 * Adds a listener that will be called when unique mode changes.
-	 * @param listener - Function to be called with the new unique state
-	 */
-	public addUniqueChangeListener(listener: (val: boolean) => void): void {
-		this.uniqueChangeListeners.push(listener);
-	}
-
-	/**
-	 * Adds a listener that will be called when outline visibility changes.
-	 * @param listener - Function to be called with the new outline visibility state
-	 */
-	public addOutlineEnabledChangeListener(listener: (val: boolean) => void): void {
-		this.outlineEnabledChangeListeners.push(listener);
+	public on<K extends keyof DomSelectorEventMap>(type: K, listener: (ev: DomSelectorEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void {
+		this.addEventListener(type, (ev: CustomEvent<DomSelectorEventMap[K]>) => {
+			listener(ev.detail);
+		}, options);
 	}
 
 	/**
@@ -98,21 +61,21 @@ export default class DomSelector {
 	 * Handles click events on the container.
 	 * @private
 	 */
-	private onContainerClick = () => {
+	private onContainerClick(): void {
 		if (this.picking) {
 			this.pick();
 		}
-	};
+	}
 
 	/**
 	 * Finalizes the element selection process.
 	 */
 	public pick(): void {
 		this.setPicking(false);
-
-		for (const listener of this.pickListeners) {
-			listener(this.element || null, this.selector);
-		}
+		this.emit("element-picked", {
+			element: this.element || null,
+			selector: this.selector
+		});
 	}
 
 	/**
@@ -124,10 +87,7 @@ export default class DomSelector {
 		if (this.picking) {
 			this.setOutlineEnabled(true);
 		}
-
-		for (const listener of this.pickingChangeListeners) {
-			listener(newValue);
-		}
+		this.emit("picking-change", newValue);
 		this.clearCurrentElement();
 	}
 
@@ -137,9 +97,7 @@ export default class DomSelector {
 	 */
 	public setUnique(newValue: boolean): void {
 		this.unique = newValue;
-		for (const listener of this.uniqueChangeListeners) {
-			listener(newValue);
-		}
+		this.emit("unique-change", newValue);
 	}
 
 	/**
@@ -150,10 +108,7 @@ export default class DomSelector {
 		this.clearSelectorOutlines();
 		this.outlineEnabled = newValue;
 		this.updateSelectorOutlines();
-		
-		for (const listener of this.outlineEnabledChangeListeners) {
-			listener(newValue);
-		}
+		this.emit("outline-enabled-change", newValue);
 	}
 
 	/**
@@ -164,9 +119,9 @@ export default class DomSelector {
 		this.clearCurrentElement();
 		element.classList.add(DomSelector.OUTLINE_CURRENT_ELEMENT_CLASS);
 		this.element = element;
-		
+
 		this.updateCurrentSelectorFromCurrentElement();
-		
+
 		if (this.picking) {
 			const tooltip = document.createElement("div");
 			tooltip.style.cssText = this.tagTooltipCssText;
@@ -194,7 +149,7 @@ export default class DomSelector {
 				this.element.removeChild(this.overTagTooltip);
 			}
 		}
-		
+
 		this.element = undefined;
 		this.overTagTooltip = undefined;
 	}
@@ -216,12 +171,8 @@ export default class DomSelector {
 	 */
 	public setCurrentSelector(newSelector: string): void {
 		this.clearSelectorOutlines();
-		
 		this.selector = newSelector;
-		for (const listener of this.selectorChangeListeners) {
-			listener(newSelector);
-		}
-		
+		this.emit("selector-change", newSelector);
 		this.updateSelectorOutlines();
 	}
 
@@ -266,7 +217,7 @@ export default class DomSelector {
 	public static connectSelectorInput(domSelector: DomSelector, input: HTMLInputElement): void {
 		function updateInput() {
 			domSelector.clearCurrentElement();
-	
+
 			try {
 				domSelector.setCurrentSelector(input.value);
 				input.setCustomValidity("");
@@ -274,16 +225,16 @@ export default class DomSelector {
 				input.setCustomValidity("Invalid format");
 			}
 		}
-	
+
 		input.addEventListener("input", updateInput);
 		input.addEventListener("change", updateInput);
-	
+
 		if (input.value) {
 			updateInput();
 		}
-	
-		domSelector.addSelectorChangeListener(function (selector) {
-			input.value = selector;
+
+		domSelector.addEventListener("selector-change", (e) => {
+			input.value = e.detail;
 			input.setCustomValidity("");
 		});
 	}
@@ -302,17 +253,17 @@ export default class DomSelector {
 				console.error(err);
 			}
 		}
-	
+
 		checkbox.addEventListener("input", updateCheckbox);
 		checkbox.addEventListener("change", updateCheckbox);
-		checkbox.addEventListener("click", function (e) { e.stopPropagation(); });
-	
+		checkbox.addEventListener("click", (e) => e.stopPropagation());
+
 		if (checkbox.checked) {
 			updateCheckbox();
 		}
-	
-		domSelector.addPickingChangeListener(function (picking) {
-			checkbox.checked = picking;
+
+		domSelector.addEventListener("picking-change", (e) => {
+			checkbox.checked = e.detail;
 		});
 	}
 
@@ -330,17 +281,17 @@ export default class DomSelector {
 				console.error(err);
 			}
 		}
-	
+
 		checkbox.addEventListener("input", updateCheckbox);
 		checkbox.addEventListener("change", updateCheckbox);
-		checkbox.addEventListener("click", function (e) { e.stopPropagation(); });
-	
+		checkbox.addEventListener("click", (e) => e.stopPropagation());
+
 		if (checkbox.checked) {
 			updateCheckbox();
 		}
-	
-		domSelector.addUniqueChangeListener(function (unique) {
-			checkbox.checked = unique;
+
+		domSelector.addEventListener("unique-change", (e) => {
+			checkbox.checked = e.detail;
 		});
 	}
 
@@ -358,17 +309,17 @@ export default class DomSelector {
 				console.error(err);
 			}
 		}
-	
+
 		checkbox.addEventListener("input", updateCheckbox);
 		checkbox.addEventListener("change", updateCheckbox);
-		checkbox.addEventListener("click", function (e) { e.stopPropagation(); });
-	
+		checkbox.addEventListener("click", (e) => e.stopPropagation());
+
 		if (checkbox.checked) {
 			updateCheckbox();
 		}
-	
-		domSelector.addOutlineEnabledChangeListener(function (show) {
-			checkbox.checked = show;
+
+		domSelector.addEventListener("outline-enabled-change", (e) => {
+			checkbox.checked = e.detail;
 		});
 	}
 
@@ -393,8 +344,21 @@ export default class DomSelector {
 		DomSelector.connectPickerCheckbox(domSelector, pickerCheckbox);
 		DomSelector.connectUniqueCheckbox(domSelector, uniqueCheckbox);
 		DomSelector.connectOutlineCheckbox(domSelector, outlineCheckbox);
-	
+
 		return domSelector;
+	}
+
+	/**
+	 * Dispatches a custom event from the DomSelector instance.
+	 * @param eventName - The name of the event
+	 * @param detail - The event detail
+	 */
+	private emit<T extends keyof DomSelectorEventMap>(eventName: T, detail: DomSelectorEventMap[T]): void {
+		this.dispatchEvent(new CustomEvent(eventName, {
+			detail,
+			bubbles: true,
+			cancelable: true
+		}));
 	}
 }
 
@@ -405,3 +369,14 @@ type DomSelectorCombinedOutliners = {
 	list: CssRuleOutlineArgs;
 	over: CssRuleOutlineArgs;
 };
+
+interface DomSelectorEventMap {
+	"picking-change": boolean;
+	"element-picked": {
+		element: Element | null,
+		selector: string
+	};
+	"selector-change": string;
+	"unique-change": boolean;
+	"outline-enabled-change": boolean;
+}

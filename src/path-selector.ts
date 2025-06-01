@@ -1,21 +1,24 @@
 import OutlineManager from "./outline-manager";
 import CssRuleOutliner from "./css-rule-outliner";
 import Outliner from "./outliner";
+import TypedEventTarget from "./typed-event-target";
 
-export default class PathSelector {
+export default class PathSelector extends (EventTarget as new() => TypedEventTarget<PathSelectorEventMap>) {
     private readonly outliner: Outliner;
     private readonly pathContainer: Element;
     private selector = "";
-    private selectorChangeListeners: ((val: string, internal: boolean) => void)[] = [];
 
     public constructor(outlineManager: OutlineManager, targetArea: Element, pathContainer: Element) {
+        super();
         this.outliner = new CssRuleOutliner(outlineManager, targetArea, "outline: 1px dashed purple !important;");
         this.pathContainer = pathContainer;
     }
 
-    public addSelectorChangeListener(listener: (val: string, internal: boolean) => void): void {
-        this.selectorChangeListeners.push(listener);
-    }
+	public on<K extends keyof PathSelectorEventMap>(type: K, listener: (ev: PathSelectorEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void {
+		this.addEventListener(type, (ev: CustomEvent<PathSelectorEventMap[K]>) => {
+			listener(ev.detail);
+		}, options);
+	}
 
     public setSelector(selector: string): void {
         this.setSelectorInner(selector, false);
@@ -78,8 +81,14 @@ export default class PathSelector {
     }
 
     private handleSelectorChange(internal: boolean) {
-        for (const listener of this.selectorChangeListeners) {
-            listener(this.selector, internal);
-        }
+        this.dispatchEvent(new CustomEvent("selector-changed", {
+            detail: { value: this.selector, internal },
+            bubbles: true,
+            composed: true
+        }));
     }
+}
+
+interface PathSelectorEventMap {
+    "selector-changed": { value: string, internal: boolean };
 }

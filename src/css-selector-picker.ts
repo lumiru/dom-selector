@@ -1,7 +1,8 @@
-import DomSelector from './dom-selector';
+import DomSelector from "./dom-selector";
 import OutlineManager from "./outline-manager";
 import CssRuleOutliner from "./css-rule-outliner";
 import PathSelector from "./path-selector";
+import TypedEventTarget from "./typed-event-target";
 
 /**
  * A class that manages CSS selector picking and related functionality.
@@ -12,56 +13,32 @@ import PathSelector from "./path-selector";
  * @property {CssRuleOutliner} outliner - Handles visual outlining of selected elements
  * @property {boolean} shortestRule - Flag indicating if shortest possible selector should be used
  * @property {boolean} outlineEnabled - Flag indicating if visual outlining is enabled
- * @property {((val: string) => void)[]} selectorChangeListeners - Array of callbacks for selector changes
- * @property {((val: boolean) => void)[]} shortestRuleChangeListeners - Array of callbacks for shortest rule changes
- * @property {((val: boolean) => void)[]} outlineEnabledChangeListeners - Array of callbacks for outline enabled changes
  * @property {string} selector - Current CSS selector string
  * 
  * @example
  * ```typescript
- * const targetArea = document.querySelector('#myArea');
+ * const targetArea = document.querySelector("#myArea");
  * const outlineManager = new OutlineManager();
  * const picker = new CssSelectorPicker(targetArea, outlineManager);
  * ```
  */
-
-export default class CssSelectorPicker {
+export default class CssSelectorPicker extends (EventTarget as new() => TypedEventTarget<CssSelectorPickerEventMap>) {
 	private readonly targetArea: Element;
 	private readonly outliner: CssRuleOutliner;
 	private shortestRule = false;
 	private outlineEnabled = false;
-	private selectorChangeListeners: ((val: string) => void)[] = [];
-	private shortestRuleChangeListeners: ((val: boolean) => void)[] = [];
-	private outlineEnabledChangeListeners: ((val: boolean) => void)[] = [];
 	private selector = "";
 
 	public constructor(targetArea: Element, outlineManager: OutlineManager) {
+		super();
 		this.targetArea = targetArea;
 		this.outliner = new CssRuleOutliner(outlineManager, targetArea, "outline: 1px dashed blue !important;");
 	}
 
-	/**
-	 * Adds a listener that will be called whenever the selector changes
-	 * @param listener - Callback function that receives the new selector value
-	 */
-	public addSelectorChangeListener(listener: (val: string) => void): void {
-		this.selectorChangeListeners.push(listener);
-	}
-
-	/**
-	 * Adds a listener that will be called whenever the shortest rule setting changes
-	 * @param listener - Callback function that receives the new shortest rule state
-	 */
-	public addShortestRuleChangeListener(listener: (val: boolean) => void): void {
-		this.shortestRuleChangeListeners.push(listener);
-	}
-
-	/**
-	 * Adds a listener that will be called whenever the outline enabled setting changes
-	 * @param listener - Callback function that receives the new outline enabled state
-	 */
-	public addOutlineEnabledChangeListener(listener: (val: boolean) => void): void {
-		this.outlineEnabledChangeListeners.push(listener);
+	public on<K extends keyof CssSelectorPickerEventMap>(type: K, listener: (ev: CssSelectorPickerEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void {
+		this.addEventListener(type, (ev: CustomEvent<CssSelectorPickerEventMap[K]>) => {
+			listener(ev.detail);
+		}, options);
 	}
 
 	/**
@@ -98,10 +75,7 @@ export default class CssSelectorPicker {
 	 */
 	public setShortestRule(shortestRule: boolean): void {
 		this.shortestRule = shortestRule;
-
-		for (const listener of this.shortestRuleChangeListeners) {
-			listener(shortestRule);
-		}
+		this.emit("shortest-rule-change", shortestRule);
 	}
 
 	/**
@@ -112,10 +86,7 @@ export default class CssSelectorPicker {
 		this.clearSelectorOutlines();
 		this.outlineEnabled = newValue;
 		this.updateSelectorOutlines();
-
-		for (const listener of this.outlineEnabledChangeListeners) {
-			listener(newValue);
-		}
+		this.emit("outline-enabled-change", newValue);
 	}
 
 	/**
@@ -135,9 +106,7 @@ export default class CssSelectorPicker {
 	 * Notifies all selector change listeners of the current selector
 	 */
 	public handleSelectorChange(): void {
-		for (const listener of this.selectorChangeListeners) {
-			listener(this.selector);
-		}
+		this.emit("selector-change", this.selector);
 	}
 
 	/**
@@ -302,7 +271,7 @@ export default class CssSelectorPicker {
 			updateInput();
 		}
 
-		cssSelectorPicker.addSelectorChangeListener(function (selector) {
+		cssSelectorPicker.on("selector-change", function (selector) {
 			input.value = selector;
 			input.setCustomValidity("");
 		});
@@ -326,7 +295,7 @@ export default class CssSelectorPicker {
 			updateCheckbox();
 		}
 
-		cssSelectorPicker.addShortestRuleChangeListener(function (show) {
+		cssSelectorPicker.on("shortest-rule-change", function (show) {
 			checkbox.checked = show;
 		});
 	}
@@ -354,7 +323,7 @@ export default class CssSelectorPicker {
 			updateCheckbox();
 		}
 
-		cssSelectorPicker.addOutlineEnabledChangeListener(function (show) {
+		cssSelectorPicker.on("outline-enabled-change", function (show) {
 			checkbox.checked = show;
 		});
 	}
@@ -370,7 +339,7 @@ export default class CssSelectorPicker {
 			counter.textContent = selectedItems.length.toString();
 		}
 
-		cssSelectorPicker.addSelectorChangeListener(updateCounter);
+		cssSelectorPicker.on("selector-change", (e) => updateCounter(e));
 
 		if (cssSelectorPicker.getSelector()) {
 			updateCounter(cssSelectorPicker.getSelector());
@@ -392,14 +361,14 @@ export default class CssSelectorPicker {
 	): void {
 		const pathSelector = new PathSelector(outlineManager, cssSelectorPicker.targetArea, pathContainer);
 
-		domSelector.addSelectorChangeListener(function (selector) {
+		domSelector.on("selector-change", function (selector) {
 			pathSelector.setSelector(selector);
 		});
-		pathSelector.addSelectorChangeListener(function (selector, internal) {
+		pathSelector.on("selector-changed", function ({ value, internal }) {
 			pathContainer.scrollLeft = pathContainer.scrollWidth - pathContainer.getBoundingClientRect().width + 1;
 
 			if (internal) {
-				cssSelectorPicker.setSelector(selector);
+				cssSelectorPicker.setSelector(value);
 			}
 		});
 	}
@@ -430,15 +399,15 @@ export default class CssSelectorPicker {
 		const cssSelectorPicker = new CssSelectorPicker(targetArea, outlineManager);
 		const domSelector = new DomSelector(targetArea, outlineManager);
 
-		domSelector.addPickListener(function (_element, selector) {
+		domSelector.on("element-picked", function ({ selector }) {
 			cssSelectorPicker.setSelector(selector);
 		});
-		domSelector.addPickingChangeListener(function (picking) {
+		domSelector.on("picking-change", function (picking) {
 			if (!picking) {
 				domSelector.setOutlineEnabled(false);
 			}
 		});
-		cssSelectorPicker.addSelectorChangeListener(function (selector) {
+		cssSelectorPicker.on("selector-change", function (selector) {
 			const firstCurrentSelectedElement = document.querySelector(selector);
 
 			if (firstCurrentSelectedElement) {
@@ -460,10 +429,29 @@ export default class CssSelectorPicker {
 			cssSelectorPicker
 		};
 	}
+
+	/**
+	 * Emits an event to all registered listeners
+	 * @param type - The event type
+	 * @param detail - The value to pass to listeners
+	 */
+	private emit<K extends keyof CssSelectorPickerEventMap>(type: K, detail: CssSelectorPickerEventMap[K]): void {
+		const event = new CustomEvent(type, { detail });
+		this.dispatchEvent(event);
+	}
 }
 
 export interface FullHtmlCssSelectorEnv {
 	outlineManager: OutlineManager;
 	domSelector: DomSelector;
 	cssSelectorPicker: CssSelectorPicker;
+}
+
+/**
+ * Les types d"événements disponibles
+ */
+interface CssSelectorPickerEventMap {
+	"selector-change": string;
+	"shortest-rule-change": boolean;
+	"outline-enabled-change": boolean;
 }
