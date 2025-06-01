@@ -168,43 +168,29 @@ export default class CssSelectorPicker extends (EventTarget as new() => TypedEve
 			const selectorWithPipes = selector.replace(/([.#:])/g, "|$1");
 			const selectorParts = selectorWithPipes.split("|");
 
-			if (selectorParts.length > 1) {
-				for (let i = 0; i < selectorParts.length; i++) {
-					const part = selectorParts[i];
-
-					if (part && isSelectorEquivalent(prefix + part)) {
-						return prefix + part;
+			function generateCombinations(parts: string[], combinationLength: number, start = 0, current: string[] = []): string | null {
+				if (current.length === combinationLength) {
+					const candidate = prefix + current.join('');
+					if (isSelectorEquivalent(candidate)) {
+						return candidate;
 					}
+					return null;
 				}
+				
+				for (let i = start; i < parts.length; i++) {
+					current.push(parts[i] as string);
+					const result = generateCombinations(parts, combinationLength, i + 1, current);
+					if (result) return result;
+					current.pop();
+				}
+				
+				return null;
 			}
 
-			if (selectorParts.length > 2) {
-				for (let i = 0; i < selectorParts.length; i++) {
-					const part = selectorParts[i];
-
-					for (let j = 0; j < selectorParts.length; j++) {
-						if (i !== j && isSelectorEquivalent(prefix + part + selectorParts[j])) {
-							return prefix + part + selectorParts[j];
-						}
-					}
-				}
-			}
-
-			if (selectorParts.length > 3) {
-				for (let i = 0; i < selectorParts.length; i++) {
-					const part = selectorParts[i];
-
-					for (let j = 0; j < selectorParts.length; j++) {
-						if (i !== j) {
-							const part2 = selectorParts[j];
-
-							for (let k = 0; k < selectorParts.length; k++) {
-								if (i !== k && j !== k && isSelectorEquivalent(prefix + part + part2 + selectorParts[k])) {
-									return prefix + part + part2 + selectorParts[k];
-								}
-							}
-						}
-					}
+			for (let k = 1; k <= selectorParts.length; k++) {
+				if (selectorParts.length > k) {
+					const candidate = generateCombinations(selectorParts, k);
+					if (candidate) return prefix + candidate;
 				}
 			}
 
@@ -260,7 +246,11 @@ export default class CssSelectorPicker extends (EventTarget as new() => TypedEve
 					input.setCustomValidity("No element found with this selector")
 				}
 			} catch (err) {
-				input.setCustomValidity("Invalid format: " + err.message);
+				if (err instanceof Error) {
+					input.setCustomValidity("Invalid selector: " + err.message);
+				} else {
+					console.error(err);
+				}
 			}
 		}
 
