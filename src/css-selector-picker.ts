@@ -1,8 +1,29 @@
-
 import DomSelector from './dom-selector';
 import OutlineManager from "./outline-manager";
 import CssRuleOutliner from "./css-rule-outliner";
 import PathSelector from "./path-selector";
+
+/**
+ * A class that manages CSS selector picking and related functionality.
+ * 
+ * @class CssSelectorPicker
+ * 
+ * @property {Element} targetArea - The DOM element where selector picking is active
+ * @property {CssRuleOutliner} outliner - Handles visual outlining of selected elements
+ * @property {boolean} shortestRule - Flag indicating if shortest possible selector should be used
+ * @property {boolean} outlineEnabled - Flag indicating if visual outlining is enabled
+ * @property {((val: string) => void)[]} selectorChangeListeners - Array of callbacks for selector changes
+ * @property {((val: boolean) => void)[]} shortestRuleChangeListeners - Array of callbacks for shortest rule changes
+ * @property {((val: boolean) => void)[]} outlineEnabledChangeListeners - Array of callbacks for outline enabled changes
+ * @property {string} selector - Current CSS selector string
+ * 
+ * @example
+ * ```typescript
+ * const targetArea = document.querySelector('#myArea');
+ * const outlineManager = new OutlineManager();
+ * const picker = new CssSelectorPicker(targetArea, outlineManager);
+ * ```
+ */
 
 export default class CssSelectorPicker {
 	private readonly targetArea: Element;
@@ -19,18 +40,34 @@ export default class CssSelectorPicker {
 		this.outliner = new CssRuleOutliner(outlineManager, targetArea, "outline: 1px dashed blue !important;");
 	}
 
+	/**
+	 * Adds a listener that will be called whenever the selector changes
+	 * @param listener - Callback function that receives the new selector value
+	 */
 	public addSelectorChangeListener(listener: (val: string) => void): void {
 		this.selectorChangeListeners.push(listener);
 	}
 
+	/**
+	 * Adds a listener that will be called whenever the shortest rule setting changes
+	 * @param listener - Callback function that receives the new shortest rule state
+	 */
 	public addShortestRuleChangeListener(listener: (val: boolean) => void): void {
 		this.shortestRuleChangeListeners.push(listener);
 	}
 
+	/**
+	 * Adds a listener that will be called whenever the outline enabled setting changes
+	 * @param listener - Callback function that receives the new outline enabled state
+	 */
 	public addOutlineEnabledChangeListener(listener: (val: boolean) => void): void {
 		this.outlineEnabledChangeListeners.push(listener);
 	}
 
+	/**
+	 * Sets the current CSS selector and updates related states
+	 * @param selector - The CSS selector string to set
+	 */
 	public setSelector(selector: string): void {
 		const oldSelector = this.selector;
 		this.clearSelectorOutlines();
@@ -47,10 +84,18 @@ export default class CssSelectorPicker {
 		}
 	}
 
+	/**
+	 * Returns the current CSS selector
+	 * @returns The current CSS selector string
+	 */
 	public getSelector(): string {
 		return this.selector;
 	}
 
+	/**
+	 * Sets whether to use the shortest possible selector
+	 * @param shortestRule - Boolean indicating if shortest rule should be used
+	 */
 	public setShortestRule(shortestRule: boolean): void {
 		this.shortestRule = shortestRule;
 
@@ -59,6 +104,10 @@ export default class CssSelectorPicker {
 		}
 	}
 
+	/**
+	 * Enables or disables the visual outline of selected elements
+	 * @param newValue - Boolean indicating if outline should be enabled
+	 */
 	public setOutlineEnabled(newValue: boolean): void {
 		this.clearSelectorOutlines();
 		this.outlineEnabled = newValue;
@@ -69,6 +118,10 @@ export default class CssSelectorPicker {
 		}
 	}
 
+	/**
+	 * Attempts to find and apply the shortest equivalent CSS selector
+	 * @param handle - Whether to trigger selector change handlers
+	 */
 	public applyShortestRule(handle = true): void {
 		const oldSelector = this.selector;
 		this.selector = CssSelectorPicker.getShortestSelector(this.targetArea, this.selector);
@@ -78,12 +131,18 @@ export default class CssSelectorPicker {
 		}
 	}
 
+	/**
+	 * Notifies all selector change listeners of the current selector
+	 */
 	public handleSelectorChange(): void {
 		for (const listener of this.selectorChangeListeners) {
 			listener(this.selector);
 		}
 	}
 
+	/**
+	 * Updates the visual outline for elements matching the current selector
+	 */
 	public updateSelectorOutlines(): void {
 		if (this.outlineEnabled) {
 			// Will throw an exception if selector is malformed
@@ -93,10 +152,19 @@ export default class CssSelectorPicker {
 		}
 	}
 
+	/**
+	 * Removes all current visual outlines
+	 */
 	public clearSelectorOutlines(): void {
 		this.outliner.clear();
 	}
 
+	/**
+	 * Finds the shortest possible selector that selects the same elements
+	 * @param targetArea - The root element to search within
+	 * @param selector - The original selector to optimize
+	 * @returns The shortest equivalent CSS selector
+	 */
 	public static getShortestSelector(targetArea: Element, selector: string): string {
 		const baseItemList = targetArea.querySelectorAll(selector);
 
@@ -206,6 +274,11 @@ export default class CssSelectorPicker {
 		return selector;
 	}
 
+	/**
+	 * Connects an input element to the selector picker for two-way binding
+	 * @param cssSelectorPicker - The selector picker instance
+	 * @param input - The input element to connect
+	 */
 	public static connectSelectorInput(cssSelectorPicker: CssSelectorPicker, input: HTMLInputElement): void {
 		function updateInput() {
 			try {
@@ -235,6 +308,11 @@ export default class CssSelectorPicker {
 		});
 	}
 
+	/**
+	 * Connects a checkbox to control the shortest rule feature
+	 * @param cssSelectorPicker - The selector picker instance
+	 * @param checkbox - The checkbox element to connect
+	 */
 	public static connectShortestCheckbox(cssSelectorPicker: CssSelectorPicker, checkbox: HTMLInputElement): void {
 		function updateCheckbox() {
 			cssSelectorPicker.setShortestRule(checkbox.checked);
@@ -253,6 +331,11 @@ export default class CssSelectorPicker {
 		});
 	}
 
+	/**
+	 * Connects a checkbox to control the outline visibility
+	 * @param cssSelectorPicker - The selector picker instance
+	 * @param checkbox - The checkbox element to connect
+	 */
 	public static connectOutlineCheckbox(cssSelectorPicker: CssSelectorPicker, checkbox: HTMLInputElement): void {
 		function updateCheckbox() {
 			try {
@@ -276,6 +359,11 @@ export default class CssSelectorPicker {
 		});
 	}
 
+	/**
+	 * Connects an element to display the count of matched elements
+	 * @param cssSelectorPicker - The selector picker instance
+	 * @param counter - The element to display the count
+	 */
 	public static connectCounter(cssSelectorPicker: CssSelectorPicker, counter: Element): void {
 		function updateCounter(selector: string) {
 			const selectedItems = cssSelectorPicker.targetArea.querySelectorAll(selector);
@@ -289,6 +377,13 @@ export default class CssSelectorPicker {
 		}
 	}
 
+	/**
+	 * Connects a path selector to the selector picker
+	 * @param domSelector - The DOM selector instance
+	 * @param cssSelectorPicker - The selector picker instance
+	 * @param pathContainer - The container element for the path selector
+	 * @param outlineManager - The outline manager instance
+	 */
 	public static connectPathSelector(
 		domSelector: DomSelector,
 		cssSelectorPicker: CssSelectorPicker,
@@ -309,6 +404,18 @@ export default class CssSelectorPicker {
 		});
 	}
 
+	/**
+	 * Creates a complete selector environment from HTML inputs
+	 * @param targetArea - The root element to search within
+	 * @param selectorInput - Input element for the CSS selector
+	 * @param counter - Element to display match count
+	 * @param pathContainer - Container for the path selector
+	 * @param pickerCheckbox - Checkbox to enable/disable picker
+	 * @param uniqueCheckbox - Checkbox to enable/disable unique selection
+	 * @param outlineCheckbox - Checkbox to enable/disable outline
+	 * @param shortestCheckbox - Checkbox to enable/disable shortest rule
+	 * @returns An object containing the created selector environment
+	 */
 	public static createFromPlainHtmlInputs(
 		targetArea: Element,
 		selectorInput: HTMLInputElement,
