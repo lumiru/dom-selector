@@ -226,7 +226,7 @@ export default class CssSelectorPicker extends (EventTarget as new() => TypedEve
 			result = selectorWithoutChevrons;
 
 			// If chevrons are not needed, we could try to drop some selector parts, so we try to use the extrem selector parts.
-			// Please not that, since this method is recursive, we only need to check the extrem selector parts, the other parts are already checked by recursion.
+			// Please note that, since this method is recursive, we only need to check the extrem selector parts, the other parts are already checked by recursion.
 			const splittedSelectorItems = result.split(" ");
 			if (splittedSelectorItems.length > 2) {
 				const extremsSelector = splittedSelectorItems[0] + " " + splittedSelectorItems[splittedSelectorItems.length - 1];

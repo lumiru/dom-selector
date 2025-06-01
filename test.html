@@ -2083,11 +2083,12 @@ a {
 }
 
 .fw-css-rule-input-toolbar {
-	position: fixed;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background-color: rgba(255,255,255,.6);
+	position: sticky;
+	left: 0px;
+	right: 0px;
+	bottom: 0px;
+	background-color: rgb(51, 51, 51);
+	color: rgb(239, 239, 239);
 }
 
 .fw-css-rule-input-toolbar p {
@@ -2129,7 +2130,72 @@ a {
 .fw-css-rule-input-path {
 	overflow: hidden;
 	white-space: nowrap;
+	box-shadow: 0 0 15px 1px rgba(0, 0, 0, 0.35);
+	border-radius: 5px;
 }
+
+.fw-css-path-selector-item {
+	text-decoration: none;
+	outline: none;
+	display: block;
+	float: left;
+	font-size: 12px;
+	line-height: 2em;
+	color: white;
+	padding: 0 .5em 0 1.5em;
+	background: #666;
+	background: linear-gradient(#666, #333);
+	position: relative;
+	border: 1px solid #000000;
+}
+
+.fw-css-path-selector-item:first-child {
+	padding-left: 1em;
+	border-radius: 5px 0 0 5px;
+}
+.fw-css-path-selector-item:last-child {
+	border-radius: 0 5px 5px 0;
+	padding-right: 1em;
+}
+
+.fw-css-path-selector-item::after {
+	content: '';
+	position: absolute;
+	top: 0; 
+	right: -1em;
+	width: 2em; 
+	height: 2em;
+	transform: scale(0.707) rotate(45deg);
+	z-index: 1;
+	background: #666;
+	background: linear-gradient(135deg, #666, #333);
+	box-shadow: 
+		rgb(0, 0, 0) 2px -2px 0px .1px,
+		rgba(255, 255, 255, 0.1) 3px -3px 0px .5px;
+	border-radius: 0 5px 0 50px;
+}
+.fw-css-path-selector-item:last-child::after {
+	content: none;
+}
+.fw-css-path-selector-item:active, .fw-css-path-selector-item:hover {
+	background: #333;
+	background: linear-gradient(#333, #000);
+}
+.fw-css-path-selector-item:active::after, .fw-css-path-selector-item:hover::after {
+	background: #333;
+	background: linear-gradient(135deg, #333, #000);
+}
+
+#fw-css-rule-input-count {
+	background-color: #f00;
+	font-size: .7em;
+	padding: .4em;
+	border-radius: 1em;
+	min-width: 1.1em;
+	display: inline-block;
+	text-align: center;
+}
+
 
 		</style>
 		<script type="module">//import { finder } from 'https://medv.io/finder/finder.js'; window.finder = finder;</script>
