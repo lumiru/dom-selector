@@ -135,23 +135,12 @@ export default class CssSelectorPicker extends (EventTarget as new() => TypedEve
 	 * @returns The shortest equivalent CSS selector
 	 */
 	public static getShortestSelector(targetArea: Element, selector: string): string {
-		const baseItemList = targetArea.querySelectorAll(selector);
-
-		// // Use finder from https://github.com/antonmedv/finder
-		// // It does not work with selection of multiple entities
-		// if (typeof finder !== "undefined" && baseItemList.length === 1) {
-		// 	return finder(baseItemList[0], {
-		// 		root: targetArea,
-		// 		className: function(name) { return name !== DomSelector.OUTLINE_CURRENT_ELEMENT_CLASS; }
-		// 	}).replace(/ > /g, ">");
-		// }
-
-		const baseItems: Element[] = [];
-		for (let i = 0; i < baseItemList.length; i++) {
-			baseItems.push(baseItemList.item(i));
-		}
+		const baseItems = Array.from(targetArea.querySelectorAll(selector));
 
 		function isSelectorEquivalent(newSelector: string) {
+			if (!newSelector) {
+				return false;
+			}
 			const newSelectorItems = targetArea.querySelectorAll(newSelector);
 
 			if (baseItems.length === newSelectorItems.length) {
@@ -164,32 +153,49 @@ export default class CssSelectorPicker extends (EventTarget as new() => TypedEve
 			return false;
 		}
 
+		/**
+		 * Finds the shortest selector part that matches the given prefix and selector
+		 * @param prefix - The prefix to prepend to the selector part
+		 * @param selector - The selector part to analyze
+		 * @returns The shortest selector that can be used to select the same elements
+		 */
 		function getShortestSelectorPart(prefix: string, selector: string) {
 			const selectorWithPipes = selector.replace(/([.#:])/g, "|$1");
 			const selectorParts = selectorWithPipes.split("|");
 
-			function generateCombinations(parts: string[], combinationLength: number, start = 0, current: string[] = []): string | null {
-				if (current.length === combinationLength) {
+			/**
+			 * Finds a combination of selector parts that matches the given length
+			 * @param parts - The parts of the selector to combine
+			 * @param combinationLength - The length of the combination to find
+			 * @param start - The starting index for the combination
+			 * @param current - The current combination being built
+			 * @return A selector that can be used to select the same elements, or null if no combination is found
+			 */
+			function findCombinationOfGivenLength(parts: string[], combinationLength: number, start = 0, current: string[] = []): string | null {
+				// Since this method is recursive, we need to check if we have to stop at first
+				if (current.length >= combinationLength) {
 					const candidate = prefix + current.join('');
 					if (isSelectorEquivalent(candidate)) {
 						return candidate;
 					}
 					return null;
 				}
-				
+
 				for (let i = start; i < parts.length; i++) {
 					current.push(parts[i] as string);
-					const result = generateCombinations(parts, combinationLength, i + 1, current);
+					const result = findCombinationOfGivenLength(parts, combinationLength, i + 1, current);
 					if (result) return result;
 					current.pop();
 				}
-				
+
 				return null;
 			}
 
+			// Try combinations from one part
+			// We do not try the complete selector since it is the fallback (that is why we stop before the last part)
 			for (let k = 1; k <= selectorParts.length; k++) {
 				if (selectorParts.length > k) {
-					const candidate = generateCombinations(selectorParts, k);
+					const candidate = findCombinationOfGivenLength(selectorParts, k);
 					if (candidate) return prefix + candidate;
 				}
 			}
@@ -197,36 +203,43 @@ export default class CssSelectorPicker extends (EventTarget as new() => TypedEve
 			return prefix + selector;
 		}
 
-
 		const lastChevronIndex = selector.lastIndexOf(">");
 		const lastElementSelector = selector.substring(lastChevronIndex + 1);
 
+		// If the last selector part is enough to select the same elements, we can return it directly
 		if (isSelectorEquivalent(lastElementSelector)) {
-			selector = getShortestSelectorPart("", lastElementSelector);
+			return getShortestSelectorPart("", lastElementSelector);
 		}
-		else if (lastChevronIndex > 0) {
-			const parentShortestSelector = CssSelectorPicker.getShortestSelector(targetArea, selector.substring(0, lastChevronIndex));
-			selector = parentShortestSelector + ">" + lastElementSelector;
 
-			const selectorWithoutChevrons = selector.replace(/>/g," ");
-			if (isSelectorEquivalent(selectorWithoutChevrons)) {
-				selector = selectorWithoutChevrons;
+		// If there is no chevron, we can return the shortest selector part directly
+		if (lastChevronIndex <= 0) {
+			return getShortestSelectorPart("", selector);
+		}
+		
+		// If the last selector part is not enough, we need to find the shortest parent selector first
+		const parentShortestSelector = CssSelectorPicker.getShortestSelector(targetArea, selector.substring(0, lastChevronIndex));
+		let result = parentShortestSelector + ">" + lastElementSelector;
 
-				const splittedSelectorItems = selector.split(" ");
-				if (splittedSelectorItems.length > 2) {
-					const extremsSelector = splittedSelectorItems[0] + " " + splittedSelectorItems[splittedSelectorItems.length - 1];
+		// Then, we check if the selector without chevrons is equivalent to the original selector
+		const selectorWithoutChevrons = result.replace(/>/g," ");
+		if (isSelectorEquivalent(selectorWithoutChevrons)) {
+			result = selectorWithoutChevrons;
 
-					if (isSelectorEquivalent(extremsSelector)) {
-						selector = extremsSelector;
-					}
+			// If chevrons are not needed, we could try to drop some selector parts, so we try to use the extrem selector parts.
+			// Please not that, since this method is recursive, we only need to check the extrem selector parts, the other parts are already checked by recursion.
+			const splittedSelectorItems = result.split(" ");
+			if (splittedSelectorItems.length > 2) {
+				const extremsSelector = splittedSelectorItems[0] + " " + splittedSelectorItems[splittedSelectorItems.length - 1];
+
+				if (isSelectorEquivalent(extremsSelector)) {
+					result = extremsSelector;
 				}
 			}
-
-			const lastElementPrefix = selector.substring(0, selector.length - lastElementSelector.length);
-			selector = getShortestSelectorPart(lastElementPrefix, lastElementSelector);
 		}
 
-		return selector;
+		// Finally, we return the shortest selector that can be used to select the same elements
+		const lastElementPrefix = result.substring(0, result.length - lastElementSelector.length);
+		return getShortestSelectorPart(lastElementPrefix, lastElementSelector);
 	}
 
 	/**
